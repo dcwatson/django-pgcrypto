@@ -1,3 +1,15 @@
+# django-pgcrypto
+# Dan Watson
+#
+# A pure python implementation of ASCII Armor, along with various
+# padding and unpadding functions, all compatible with pgcrypto.
+#
+# Additionally, this module defines Django fields that automatically
+# encrypt and armor (and decrypt and dearmor) values for storage
+# in text fields. Values stored using these fields may be read by
+# pgcrypto using decrypt(dearmor(col),...), and values stored by 
+# pgcrypto using armor(encrypt(col,...)) may be read by these fields.
+#
 # See http://www.ietf.org/rfc/rfc2440.txt for ASCII Armor specs.
 
 try:
@@ -24,9 +36,14 @@ def crc24( data ):
 	return crc & 0xFFFFFF
 
 def armor( data ):
+	"""
+	Returns a string in ASCII Armor format, for the given binary data. The
+	output of this is compatiple with pgcrypto's armor/dearmor functions.
+	"""
 	template = '-----BEGIN PGP MESSAGE-----\n%(headers)s\n\n%(body)s\n=%(crc)s\n-----END PGP MESSAGE-----'
 	headers = ['Version: django-pgcrypto 1.0']
 	body = base64.b64encode( data )
+	# The 24-bit CRC should be in big-endian, strip off the first byte (it's already masked in crc24).
 	crc = base64.b64encode( struct.pack('>L', crc24(data))[1:] )
 	return template % {
 		'headers': '\n'.join(headers),
@@ -38,6 +55,12 @@ class BadChecksumError (Exception):
 	pass
 
 def dearmor( text, verify=True ):
+	"""
+	Given a string in ASCII Armor format, returns the decoded binary data.
+	If verify=True (the default), the CRC is decoded and checked against that 
+	of the decoded data, otherwise it is ignored. If the checksum does not
+	match, a BadChecksumError exception is raised.
+	"""
 	lines = text.strip().split( '\n' )
 	data_lines = []
 	check_data = None
@@ -66,6 +89,7 @@ def dearmor( text, verify=True ):
 					in_body = True
 	data = base64.b64decode( ''.join(data_lines) )
 	if verify and check_data:
+		# The 24-bit CRC is in big-endian, so we add a null byte to the beginning.
 		crc = struct.unpack( '>L', '\0'+base64.b64decode(check_data) )[0]
 		if crc != crc24(data):
 			raise BadChecksumError()
@@ -104,9 +128,11 @@ def aes_pad_key( key ):
 	AES keys must be either 16, 24, or 32 bytes long. If a key is provided that is not
 	one of these lengths, pad it with zeroes (this is what pgcrypto does).
 	"""
-	if len(key) <= 16:
+	if len(key) in (16, 24, 32):
+		return key
+	if len(key) < 16:
 		return pad( key, 16, zero=True )
-	elif len(key) <= 24:
+	elif len(key) < 24:
 		return pad( key, 24, zero=True )
 	else:
 		return pad( key[:32], 32, zero=True )
