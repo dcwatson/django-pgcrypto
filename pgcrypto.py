@@ -71,13 +71,21 @@ def dearmor( text, verify=True ):
 			raise BadChecksumError()
 	return data
 
-def unpad( text ):
+def unpad( text, block_size ):
 	"""
-	Strips off any bytes with a value less than 8 from the end of the text string. This
-	means you can't use any of those bytes in your data, but that is OK for most purposes.
+	Takes the last character of the text, and if it is less than the block_size,
+	assumes the text is padded, and removes any trailing zeros or bytes with the
+	value of the pad character. See http://www.di-mgt.com.au/cryptopad.html for
+	more information (methods 1, 3, and 4).
 	"""
-	end = len(text)
-	while ord(text[end-1]) < 8:
+	end = len( text )
+	if end == 0:
+		return text
+	padch = ord( text[end-1] )
+	if padch > block_size:
+		# If the last byte value is larger than the block size, it's not padded.
+		return text
+	while end > 0 and ord(text[end-1]) in (0, padch):
 		end -= 1
 	return text[:end]
 
@@ -88,8 +96,6 @@ def pad( text, block_size, zero=False ):
 	by pgcrypto. See http://www.di-mgt.com.au/cryptopad.html for more information.
 	"""
 	num = block_size - (len(text) % block_size)
-	if num == block_size:
-		return text
 	ch = '\0' if zero else chr(num)
 	return text + (ch * num)
 
@@ -136,13 +142,13 @@ if has_django:
 			return isinstance( value, basestring ) and value.startswith('-----BEGIN')
 		
 		def to_python( self, value ):
-			if value and self.is_encrypted(value):
-				return unpad( self.get_cipher().decrypt( dearmor(value, verify=self.check_armor) ) )
+			if value is not None and self.is_encrypted(value):
+				return unpad( self.get_cipher().decrypt( dearmor(value, verify=self.check_armor) ), self.cipher_class.block_size )
 			return value
 		
 		def get_prep_value( self, value ):
-			if value and not self.is_encrypted(value):
-				value = armor( self.get_cipher().encrypt( pad(value, self.cipher_class.block_size) ) )
+			if value is not None and not self.is_encrypted(value):
+				return armor( self.get_cipher().encrypt( pad(value, self.cipher_class.block_size) ) )
 			return value
 	
 	class EncryptedTextField (BaseEncryptedField):
@@ -161,7 +167,7 @@ if __name__ == '__main__':
 	assert c.encrypt( pad('sensitive information', c.block_size) ) == d
 	# Test decryption and unpadding.
 	c = Blowfish.new( 'pass', Blowfish.MODE_CBC )
-	assert unpad( c.decrypt(d) ) == 'sensitive information'
+	assert unpad( c.decrypt(d), c.block_size ) == 'sensitive information'
 	# Test armor and dearmor.
 	a = armor( d )
 	assert dearmor( a ) == d
@@ -169,3 +175,10 @@ if __name__ == '__main__':
 	d = "\263r\011\033]Q1\220\340\247\317Y,\321q\224KmuHf>Z\011M\032\316\376&z\330\344"
 	c = AES.new( aes_pad_key('pass'), AES.MODE_CBC )
 	assert c.encrypt( pad('sensitive information', c.block_size) ) == d
+	# When encrypting a string whose length is a multiple of the block size, pgcrypto
+	# tacks on an extra block of padding, so it can reliably unpad afterwards. This
+	# data was generated from the following query (string length = 16):
+	#    select encrypt('xxxxxxxxxxxxxxxx', 'secret', 'aes');
+	d = "5M\304\316\240B$Z\351\021PD\317\213\213\234f\225L \342\004SIX\030\331S\376\371\220\\"
+	c = AES.new( aes_pad_key('secret'), AES.MODE_CBC )
+	assert unpad( c.decrypt(d), c.block_size ) == 'xxxxxxxxxxxxxxxx'
