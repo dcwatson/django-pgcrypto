@@ -1,5 +1,12 @@
 # See http://www.ietf.org/rfc/rfc2440.txt for ASCII Armor specs.
 
+try:
+	from django.db import models
+	from django.conf import settings
+	has_django = True
+except:
+	has_django = False
+
 import base64
 import struct
 
@@ -74,17 +81,78 @@ def unpad( text ):
 		end -= 1
 	return text[:end]
 
-def pad( text, block_size ):
+def pad( text, block_size, zero=False ):
 	"""
 	Given a text string and a block size, pads the text with bytes of the same value
 	as the number of padding bytes. This is the recommended method, and the one used
 	by pgcrypto. See http://www.di-mgt.com.au/cryptopad.html for more information.
 	"""
 	num = block_size - (len(text) % block_size)
-	return text + (chr(num) * num)
+	if num == block_size:
+		return text
+	ch = '\0' if zero else chr(num)
+	return text + (ch * num)
+
+def aes_pad_key( key ):
+	"""
+	AES keys must be either 16, 24, or 32 bytes long. If a key is provided that is not
+	one of these lengths, pad it with zeroes (this is what pgcrypto does).
+	"""
+	if len(key) <= 16:
+		return pad( key, 16, zero=True )
+	elif len(key) <= 24:
+		return pad( key, 24, zero=True )
+	else:
+		return pad( key[:32], 32, zero=True )
+
+if has_django:
+	class BaseEncryptedField (models.Field):
+		
+		def __init__( self, *args, **kwargs ):
+			# Just in case pgcrypto and/or pycrypto support more than AES/Blowfish.
+			valid_ciphers = getattr( settings, 'PGCRYPTO_VALID_CIPHERS', ('AES','Blowfish') )
+			cipher_name = kwargs.pop( 'cipher', getattr(settings, 'PGCRYPTO_DEFAULT_CIPHER', 'AES') )
+			assert cipher_name in valid_ciphers
+			self.cipher_key = kwargs.pop( 'key', getattr(settings, 'PGCRYPTO_DEFAULT_KEY', '') )
+			if cipher_name == 'AES':
+				self.cipher_key = aes_pad_key( self.cipher_key )
+			mod = __import__( 'Crypto.Cipher', globals(), locals(), [cipher_name], -1 )
+			self.cipher_class = getattr( mod, cipher_name )
+			self.check_armor = kwargs.pop( 'check_armor', True )
+			models.Field.__init__( self, *args, **kwargs )
+		
+		def get_internal_type( self ):
+			return 'TextField'
+		
+		def get_cipher( self ):
+			"""
+			Return a new Cipher object for each time we want to encrypt/decrypt. This is because
+			pgcrypto expects a zeroed block for IV (initial value), but the IV on the cipher
+			object is cumulatively updated each time encrypt/decrypt is called.
+			"""
+			return self.cipher_class.new( self.cipher_key, self.cipher_class.MODE_CBC, '\0'*self.cipher_class.block_size )
+		
+		def is_encrypted( self, value ):
+			return isinstance( value, basestring ) and value.startswith('-----BEGIN')
+		
+		def to_python( self, value ):
+			if value and self.is_encrypted(value):
+				return unpad( self.get_cipher().decrypt( dearmor(value, verify=self.check_armor) ) )
+			return value
+		
+		def get_prep_value( self, value ):
+			if value and not self.is_encrypted(value):
+				value = armor( self.get_cipher().encrypt( pad(value, self.cipher_class.block_size) ) )
+			return value
+	
+	class EncryptedTextField (BaseEncryptedField):
+		__metaclass__ = models.SubfieldBase
+	
+	class EncryptedDecimalField (BaseEncryptedField):
+		__metaclass__ = models.SubfieldBase
 
 if __name__ == '__main__':
-	from Crypto.Cipher import Blowfish
+	from Crypto.Cipher import Blowfish, AES
 	# This is the expected encrypted value, according to the following pgcrypto call:
 	#   select encrypt('sensitive information', 'pass', 'bf');
 	d = "x\364r\225\356WH\347\240\205\211a\223I{~\233\034\347\217/f\035\005"
@@ -97,3 +165,7 @@ if __name__ == '__main__':
 	# Test armor and dearmor.
 	a = armor( d )
 	assert dearmor( a ) == d
+	# Test AES key padding.
+	d = "\263r\011\033]Q1\220\340\247\317Y,\321q\224KmuHf>Z\011M\032\316\376&z\330\344"
+	c = AES.new( aes_pad_key('pass'), AES.MODE_CBC )
+	assert c.encrypt( pad('sensitive information', c.block_size) ) == d
