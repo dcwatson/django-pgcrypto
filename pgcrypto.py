@@ -19,6 +19,7 @@ try:
 except:
 	has_django = False
 
+import decimal
 import base64
 import struct
 
@@ -168,20 +169,26 @@ if has_django:
 			return isinstance( value, basestring ) and value.startswith('-----BEGIN')
 		
 		def to_python( self, value ):
-			if value is not None and self.is_encrypted(value):
+			if self.is_encrypted(value):
 				return unpad( self.get_cipher().decrypt( dearmor(value, verify=self.check_armor) ), self.cipher_class.block_size )
 			return value
 		
 		def get_prep_value( self, value ):
 			if value is not None and not self.is_encrypted(value):
-				return armor( self.get_cipher().encrypt( pad(value, self.cipher_class.block_size) ) )
+				return armor( self.get_cipher().encrypt( pad(str(value), self.cipher_class.block_size) ) )
 			return value
 	
 	class EncryptedTextField (BaseEncryptedField):
 		__metaclass__ = models.SubfieldBase
+		# TODO: handle unicode correctly (encode/decode as UTF-8, or add charset option)
 	
 	class EncryptedDecimalField (BaseEncryptedField):
 		__metaclass__ = models.SubfieldBase
+		
+		def to_python( self, value ):
+			if value is not None:
+				return decimal.Decimal( BaseEncryptedField.to_python(self, str(value)) )
+			return value
 
 if __name__ == '__main__':
 	from Crypto.Cipher import Blowfish, AES
