@@ -21,3 +21,4 @@ lib64
 # Eclipse/PyDev
 .project
 .pydevproject
+.settings

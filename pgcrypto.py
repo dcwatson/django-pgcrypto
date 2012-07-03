@@ -26,26 +26,26 @@ import struct
 CRC24_INIT = 0xB704CE
 CRC24_POLY = 0x1864CFB
 
-def crc24( data ):
+def crc24(data):
 	crc = CRC24_INIT
 	for byte in data:
 		crc ^= (ord(byte) << 16)
-		for i in xrange(8):
+		for _i in xrange(8):
 			crc <<= 1
 			if crc & 0x1000000:
 				crc ^= CRC24_POLY
 	return crc & 0xFFFFFF
 
-def armor( data ):
+def armor(data):
 	"""
 	Returns a string in ASCII Armor format, for the given binary data. The
 	output of this is compatiple with pgcrypto's armor/dearmor functions.
 	"""
 	template = '-----BEGIN PGP MESSAGE-----\n%(headers)s\n\n%(body)s\n=%(crc)s\n-----END PGP MESSAGE-----'
 	headers = ['Version: django-pgcrypto 1.0']
-	body = base64.b64encode( data )
+	body = base64.b64encode(data)
 	# The 24-bit CRC should be in big-endian, strip off the first byte (it's already masked in crc24).
-	crc = base64.b64encode( struct.pack('>L', crc24(data))[1:] )
+	crc = base64.b64encode(struct.pack('>L', crc24(data))[1:])
 	return template % {
 		'headers': '\n'.join(headers),
 		'body': body,
@@ -55,14 +55,14 @@ def armor( data ):
 class BadChecksumError (Exception):
 	pass
 
-def dearmor( text, verify=True ):
+def dearmor(text, verify=True):
 	"""
 	Given a string in ASCII Armor format, returns the decoded binary data.
 	If verify=True (the default), the CRC is decoded and checked against that 
 	of the decoded data, otherwise it is ignored. If the checksum does not
 	match, a BadChecksumError exception is raised.
 	"""
-	lines = text.strip().split( '\n' )
+	lines = text.strip().split('\n')
 	data_lines = []
 	check_data = None
 	started = False
@@ -80,7 +80,7 @@ def dearmor( text, verify=True ):
 					break
 				else:
 					# This is part of the base64-encoded data.
-					data_lines.append( line )
+					data_lines.append(line)
 			else:
 				if line.strip():
 					# This is a header line, which we basically ignore for now.
@@ -88,33 +88,33 @@ def dearmor( text, verify=True ):
 				else:
 					# The data starts after an empty line.
 					in_body = True
-	data = base64.b64decode( ''.join(data_lines) )
+	data = base64.b64decode(''.join(data_lines))
 	if verify and check_data:
 		# The 24-bit CRC is in big-endian, so we add a null byte to the beginning.
-		crc = struct.unpack( '>L', '\0'+base64.b64decode(check_data) )[0]
+		crc = struct.unpack('>L', '\0' + base64.b64decode(check_data))[0]
 		if crc != crc24(data):
 			raise BadChecksumError()
 	return data
 
-def unpad( text, block_size ):
+def unpad(text, block_size):
 	"""
 	Takes the last character of the text, and if it is less than the block_size,
 	assumes the text is padded, and removes any trailing zeros or bytes with the
 	value of the pad character. See http://www.di-mgt.com.au/cryptopad.html for
 	more information (methods 1, 3, and 4).
 	"""
-	end = len( text )
+	end = len(text)
 	if end == 0:
 		return text
-	padch = ord( text[end-1] )
+	padch = ord(text[end - 1])
 	if padch > block_size:
 		# If the last byte value is larger than the block size, it's not padded.
 		return text
-	while end > 0 and ord(text[end-1]) in (0, padch):
+	while end > 0 and ord(text[end - 1]) in (0, padch):
 		end -= 1
 	return text[:end]
 
-def pad( text, block_size, zero=False ):
+def pad(text, block_size, zero=False):
 	"""
 	Given a text string and a block size, pads the text with bytes of the same value
 	as the number of padding bytes. This is the recommended method, and the one used
@@ -124,7 +124,7 @@ def pad( text, block_size, zero=False ):
 	ch = '\0' if zero else chr(num)
 	return text + (ch * num)
 
-def aes_pad_key( key ):
+def aes_pad_key(key):
 	"""
 	AES keys must be either 16, 24, or 32 bytes long. If a key is provided that is not
 	one of these lengths, pad it with zeroes (this is what pgcrypto does).
@@ -132,86 +132,60 @@ def aes_pad_key( key ):
 	if len(key) in (16, 24, 32):
 		return key
 	if len(key) < 16:
-		return pad( key, 16, zero=True )
+		return pad(key, 16, zero=True)
 	elif len(key) < 24:
-		return pad( key, 24, zero=True )
+		return pad(key, 24, zero=True)
 	else:
-		return pad( key[:32], 32, zero=True )
+		return pad(key[:32], 32, zero=True)
 
 if has_django:
 	class BaseEncryptedField (models.Field):
-		
-		def __init__( self, *args, **kwargs ):
+
+		def __init__(self, *args, **kwargs):
 			# Just in case pgcrypto and/or pycrypto support more than AES/Blowfish.
-			valid_ciphers = getattr( settings, 'PGCRYPTO_VALID_CIPHERS', ('AES','Blowfish') )
-			cipher_name = kwargs.pop( 'cipher', getattr(settings, 'PGCRYPTO_DEFAULT_CIPHER', 'AES') )
+			valid_ciphers = getattr(settings, 'PGCRYPTO_VALID_CIPHERS', ('AES', 'Blowfish'))
+			cipher_name = kwargs.pop('cipher', getattr(settings, 'PGCRYPTO_DEFAULT_CIPHER', 'AES'))
 			assert cipher_name in valid_ciphers
-			self.cipher_key = kwargs.pop( 'key', getattr(settings, 'PGCRYPTO_DEFAULT_KEY', '') )
+			self.cipher_key = kwargs.pop('key', getattr(settings, 'PGCRYPTO_DEFAULT_KEY', ''))
 			if cipher_name == 'AES':
-				self.cipher_key = aes_pad_key( self.cipher_key )
-			mod = __import__( 'Crypto.Cipher', globals(), locals(), [cipher_name], -1 )
-			self.cipher_class = getattr( mod, cipher_name )
-			self.check_armor = kwargs.pop( 'check_armor', True )
-			models.Field.__init__( self, *args, **kwargs )
-		
-		def get_internal_type( self ):
+				self.cipher_key = aes_pad_key(self.cipher_key)
+			mod = __import__('Crypto.Cipher', globals(), locals(), [cipher_name], -1)
+			self.cipher_class = getattr(mod, cipher_name)
+			self.check_armor = kwargs.pop('check_armor', True)
+			models.Field.__init__(self, *args, **kwargs)
+
+		def get_internal_type(self):
 			return 'TextField'
-		
-		def get_cipher( self ):
+
+		def get_cipher(self):
 			"""
 			Return a new Cipher object for each time we want to encrypt/decrypt. This is because
 			pgcrypto expects a zeroed block for IV (initial value), but the IV on the cipher
 			object is cumulatively updated each time encrypt/decrypt is called.
 			"""
-			return self.cipher_class.new( self.cipher_key, self.cipher_class.MODE_CBC, '\0'*self.cipher_class.block_size )
-		
-		def is_encrypted( self, value ):
-			return isinstance( value, basestring ) and value.startswith('-----BEGIN')
-		
-		def to_python( self, value ):
+			return self.cipher_class.new(self.cipher_key, self.cipher_class.MODE_CBC, '\0' * self.cipher_class.block_size)
+
+		def is_encrypted(self, value):
+			return isinstance(value, basestring) and value.startswith('-----BEGIN')
+
+		def to_python(self, value):
 			if self.is_encrypted(value):
-				return unpad( self.get_cipher().decrypt( dearmor(value, verify=self.check_armor) ), self.cipher_class.block_size )
+				return unpad(self.get_cipher().decrypt(dearmor(value, verify=self.check_armor)), self.cipher_class.block_size)
 			return value
-		
-		def get_prep_value( self, value ):
+
+		def get_prep_value(self, value):
 			if value is not None and not self.is_encrypted(value):
-				return armor( self.get_cipher().encrypt( pad(str(value), self.cipher_class.block_size) ) )
+				return armor(self.get_cipher().encrypt(pad(str(value), self.cipher_class.block_size)))
 			return value
-	
+
 	class EncryptedTextField (BaseEncryptedField):
 		__metaclass__ = models.SubfieldBase
 		# TODO: handle unicode correctly (encode/decode as UTF-8, or add charset option)
-	
+
 	class EncryptedDecimalField (BaseEncryptedField):
 		__metaclass__ = models.SubfieldBase
-		
-		def to_python( self, value ):
-			if value is not None:
-				return decimal.Decimal( BaseEncryptedField.to_python(self, str(value)) )
-			return value
 
-if __name__ == '__main__':
-	from Crypto.Cipher import Blowfish, AES
-	# This is the expected encrypted value, according to the following pgcrypto call:
-	#   select encrypt('sensitive information', 'pass', 'bf');
-	d = "x\364r\225\356WH\347\240\205\211a\223I{~\233\034\347\217/f\035\005"
-	# Test encryption and padding.
-	c = Blowfish.new( 'pass', Blowfish.MODE_CBC )
-	assert c.encrypt( pad('sensitive information', c.block_size) ) == d
-	# Test decryption and unpadding.
-	c = Blowfish.new( 'pass', Blowfish.MODE_CBC )
-	assert unpad( c.decrypt(d), c.block_size ) == 'sensitive information'
-	# Test armor and dearmor.
-	a = armor( d )
-	assert dearmor( a ) == d
-	# Test AES key padding.
-	d = "\263r\011\033]Q1\220\340\247\317Y,\321q\224KmuHf>Z\011M\032\316\376&z\330\344"
-	c = AES.new( aes_pad_key('pass'), AES.MODE_CBC )
-	assert c.encrypt( pad('sensitive information', c.block_size) ) == d
-	# When encrypting a string whose length is a multiple of the block size, pgcrypto
-	# tacks on an extra block of padding, so it can reliably unpad afterwards. This
-	# data was generated from the following query (string length = 16):
-	#    select encrypt('xxxxxxxxxxxxxxxx', 'secret', 'aes');
-	d = "5M\304\316\240B$Z\351\021PD\317\213\213\234f\225L \342\004SIX\030\331S\376\371\220\\"
-	c = AES.new( aes_pad_key('secret'), AES.MODE_CBC )
-	assert unpad( c.decrypt(d), c.block_size ) == 'xxxxxxxxxxxxxxxx'
+		def to_python(self, value):
+			if value is not None:
+				return decimal.Decimal(BaseEncryptedField.to_python(self, str(value)))
+			return value
