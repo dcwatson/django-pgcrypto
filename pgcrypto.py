@@ -12,11 +12,12 @@
 #
 # See http://www.ietf.org/rfc/rfc2440.txt for ASCII Armor specs.
 
-__version_info__ = (1, 0, 0)
+__version_info__ = (1, 1, 0)
 __version__ = '.'.join(str(i) for i in __version_info__)
 
 try:
 	from django.db import models
+	from django import forms
 	from django.conf import settings
 	has_django = True
 except:
@@ -160,6 +161,12 @@ if has_django:
 		def get_internal_type(self):
 			return 'TextField'
 
+		def south_field_triple(self):
+			"""Describe the field to south for use in migrations."""
+			from south.modelsinspector import introspector
+			args, kwargs = introspector(self)
+			return ("django.db.models.fields.TextField", args, kwargs)
+
 		def get_cipher(self):
 			"""
 			Return a new Cipher object for each time we want to encrypt/decrypt. This is because
@@ -185,8 +192,21 @@ if has_django:
 		__metaclass__ = models.SubfieldBase
 		# TODO: handle unicode correctly (encode/decode as UTF-8, or add charset option)
 
+		def formfield(self, **kwargs):
+			"""Return the formfield representation for this model fields."""
+			defaults = {'widget': forms.Textarea}
+			defaults.update(kwargs)
+			return super(EncryptedTextField, self).formfield(**defaults)
+
 	class EncryptedDecimalField (BaseEncryptedField):
 		__metaclass__ = models.SubfieldBase
+
+		def formfield(self, **kwargs):
+			"""Return the formfield representation for this model field.
+
+			Just calls into the default models.DecimalField handler.
+			"""
+			return models.DecimalField.formfield(self, **kwargs)
 
 		def to_python(self, value):
 			if value is not None:
