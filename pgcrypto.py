@@ -12,7 +12,7 @@
 #
 # See http://www.ietf.org/rfc/rfc2440.txt for ASCII Armor specs.
 
-__version_info__ = (1, 0, 0)
+__version_info__ = (1, 1, 0)
 __version__ = '.'.join(str(i) for i in __version_info__)
 
 try:
@@ -29,11 +29,16 @@ import struct
 CRC24_INIT = 0xB704CE
 CRC24_POLY = 0x1864CFB
 
+def ord_safe(ch):
+	if isinstance(ch, int):
+		return ch
+	return ord(ch)
+
 def crc24(data):
 	crc = CRC24_INIT
 	for byte in data:
-		crc ^= (ord(byte) << 16)
-		for _i in xrange(8):
+		crc ^= (ord_safe(byte) << 16)
+		for _i in range(8):
 			crc <<= 1
 			if crc & 0x1000000:
 				crc ^= CRC24_POLY
@@ -51,8 +56,8 @@ def armor(data):
 	crc = base64.b64encode(struct.pack('>L', crc24(data))[1:])
 	return template % {
 		'headers': '\n'.join(headers),
-		'body': body,
-		'crc': crc
+		'body': body.decode('ascii'),
+		'crc': crc.decode('ascii'),
 	}
 
 class BadChecksumError (Exception):
@@ -79,7 +84,7 @@ def dearmor(text, verify=True):
 			if in_body:
 				if line.startswith('='):
 					# Once we get the checksum data, we're done.
-					check_data = line[1:5]
+					check_data = line[1:5].encode('ascii')
 					break
 				else:
 					# This is part of the base64-encoded data.
@@ -91,10 +96,12 @@ def dearmor(text, verify=True):
 				else:
 					# The data starts after an empty line.
 					in_body = True
-	data = base64.b64decode(''.join(data_lines))
+	b64_str = ''.join(data_lines)
+	# Python 3's b64decode expects bytes, not a string. We know base64 is ASCII, though.
+	data = base64.b64decode(b64_str.encode('ascii'))
 	if verify and check_data:
 		# The 24-bit CRC is in big-endian, so we add a null byte to the beginning.
-		crc = struct.unpack('>L', '\0' + base64.b64decode(check_data))[0]
+		crc = struct.unpack('>L', b'\0' + base64.b64decode(check_data))[0]
 		if crc != crc24(data):
 			raise BadChecksumError()
 	return data
@@ -109,11 +116,11 @@ def unpad(text, block_size):
 	end = len(text)
 	if end == 0:
 		return text
-	padch = ord(text[end - 1])
+	padch = ord_safe(text[end - 1])
 	if padch > block_size:
 		# If the last byte value is larger than the block size, it's not padded.
 		return text
-	while end > 0 and ord(text[end - 1]) in (0, padch):
+	while end > 0 and ord_safe(text[end - 1]) in (0, padch):
 		end -= 1
 	return text[:end]
 
