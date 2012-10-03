@@ -17,6 +17,7 @@ __version__ = '.'.join(str(i) for i in __version_info__)
 
 try:
 	from django.db import models
+	from django import forms
 	from django.conf import settings
 	has_django = True
 except:
@@ -157,6 +158,7 @@ if has_django:
 			cipher_name = kwargs.pop('cipher', getattr(settings, 'PGCRYPTO_DEFAULT_CIPHER', 'AES'))
 			assert cipher_name in valid_ciphers
 			self.cipher_key = kwargs.pop('key', getattr(settings, 'PGCRYPTO_DEFAULT_KEY', ''))
+			self.charset = 'utf-8'
 			if cipher_name == 'AES':
 				self.cipher_key = aes_pad_key(self.cipher_key)
 			mod = __import__('Crypto.Cipher', globals(), locals(), [cipher_name], -1)
@@ -166,6 +168,12 @@ if has_django:
 
 		def get_internal_type(self):
 			return 'TextField'
+
+		def south_field_triple(self):
+			"""Describe the field to south for use in migrations."""
+			from south.modelsinspector import introspector
+			args, kwargs = introspector(self)
+			return ("django.db.models.fields.TextField", args, kwargs)
 
 		def get_cipher(self):
 			"""
@@ -180,22 +188,35 @@ if has_django:
 
 		def to_python(self, value):
 			if self.is_encrypted(value):
-				return unpad(self.get_cipher().decrypt(dearmor(value, verify=self.check_armor)), self.cipher_class.block_size)
+				return unpad(self.get_cipher().decrypt(dearmor(value, verify=self.check_armor)), self.cipher_class.block_size).decode(self.charset)
 			return value
 
 		def get_prep_value(self, value):
 			if value is not None and not self.is_encrypted(value):
-				return armor(self.get_cipher().encrypt(pad(str(value), self.cipher_class.block_size)))
+				return armor(self.get_cipher().encrypt(pad(value.encode(self.charset), self.cipher_class.block_size)))
 			return value
 
 	class EncryptedTextField (BaseEncryptedField):
 		__metaclass__ = models.SubfieldBase
-		# TODO: handle unicode correctly (encode/decode as UTF-8, or add charset option)
+
+		def formfield(self, **kwargs):
+			"""Return the formfield representation for this model fields."""
+			defaults = {'widget': forms.Textarea}
+			defaults.update(kwargs)
+			return super(EncryptedTextField, self).formfield(**defaults)
 
 	class EncryptedDecimalField (BaseEncryptedField):
 		__metaclass__ = models.SubfieldBase
 
+		def formfield(self, **kwargs):
+			"""Return the formfield representation for this model field.
+
+			Just calls into the default models.DecimalField handler.
+			"""
+			return models.DecimalField.formfield(self, **kwargs)
+
 		def to_python(self, value):
 			if value is not None:
-				return decimal.Decimal(BaseEncryptedField.to_python(self, str(value)))
+				return decimal.Decimal(super(EncryptedDecimalField, self).to_python(value))
 			return value
+
