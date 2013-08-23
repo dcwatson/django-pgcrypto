@@ -7,7 +7,7 @@
 # Additionally, this module defines Django fields that automatically
 # encrypt and armor (and decrypt and dearmor) values for storage
 # in text fields. Values stored using these fields may be read by
-# pgcrypto using decrypt(dearmor(col),...), and values stored by 
+# pgcrypto using decrypt(dearmor(col),...), and values stored by
 # pgcrypto using armor(encrypt(col,...)) may be read by these fields.
 #
 # See http://www.ietf.org/rfc/rfc2440.txt for ASCII Armor specs.
@@ -67,7 +67,7 @@ class BadChecksumError (Exception):
 def dearmor(text, verify=True):
     """
     Given a string in ASCII Armor format, returns the decoded binary data.
-    If verify=True (the default), the CRC is decoded and checked against that 
+    If verify=True (the default), the CRC is decoded and checked against that
     of the decoded data, otherwise it is ignored. If the checksum does not
     match, a BadChecksumError exception is raised.
     """
@@ -216,6 +216,14 @@ if has_django:
             defaults = {'widget': forms.Textarea}
             defaults.update(kwargs)
             return super(EncryptedTextField, self).formfield(**defaults)
+
+    class EncryptedCharField (BaseEncryptedField):
+        __metaclass__ = models.SubfieldBase
+
+        def formfield(self, **kwargs):
+            defaults = {'widget': forms.TextInput}
+            defaults.update(kwargs)
+            return super(EncryptedCharField, self).formfield(**defaults)
 
     class EncryptedDecimalField (BaseEncryptedField):
         __metaclass__ = models.SubfieldBase
