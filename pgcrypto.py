@@ -265,3 +265,11 @@ if has_django:
                 from dateutil import parser
                 return parser.parse(super(EncryptedDateField, self).to_python(value))
             return value
+
+    class EncryptedEmailField (BaseEncryptedField):
+        __metaclass__ = models.SubfieldBase
+
+        def formfield(self, **kwargs):
+            defaults = {'form_class': forms.EmailField}
+            defaults.update(kwargs)
+            return super(EncryptedCharField, self).formfield(**defaults)
