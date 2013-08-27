@@ -251,3 +251,17 @@ if has_django:
                 from dateutil import parser
                 return parser.parse(super(EncryptedDateField, self).to_python(value)).date()
             return value
+
+    class EncryptedDateTimeField (BaseEncryptedField):
+        __metaclass__ = models.SubfieldBase
+
+        def formfield(self, **kwargs):
+            defaults = {'widget': forms.DateTimeInput}
+            defaults.update(kwargs)
+            return super(EncryptedCharField, self).formfield(**defaults)
+
+        def to_python(self, value):
+            if value:
+                from dateutil import parser
+                return parser.parse(super(EncryptedDateField, self).to_python(value))
+            return value
