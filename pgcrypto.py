@@ -237,3 +237,17 @@ if has_django:
             if value:
                 return decimal.Decimal(super(EncryptedDecimalField, self).to_python(value))
             return value
+
+    class EncryptedDateField (BaseEncryptedField):
+        __metaclass__ = models.SubfieldBase
+
+        def formfield(self, **kwargs):
+            defaults = {'widget': forms.DateInput}
+            defaults.update(kwargs)
+            return super(EncryptedDateField, self).formfield(**defaults)
+
+        def to_python(self, value):
+            if value:
+                from dateutil import parser
+                return parser.parse(super(EncryptedDateField, self).to_python(value)).date()
+            return value

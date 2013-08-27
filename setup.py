@@ -10,6 +10,10 @@ setup(
     url='https://github.com/dcwatson/django-pgcrypto',
     license='BSD',
     py_modules=['pgcrypto'],
+    install_requires=[
+        'python-dateutil==2.1',
+        'pycrypto==2.6',
+    ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Framework :: Django',
