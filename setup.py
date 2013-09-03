@@ -11,7 +11,6 @@ setup(
     license='BSD',
     py_modules=['pgcrypto'],
     install_requires=[
-        'python-dateutil==2.1',
         'pycrypto==2.6',
     ],
     classifiers=[

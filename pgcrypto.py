@@ -16,15 +16,19 @@ __version_info__ = (1, 1, 0)
 __version__ = '.'.join(str(i) for i in __version_info__)
 
 try:
-    from django.db import models
     from django import forms
     from django.conf import settings
+    from django.core import validators
+    from django.db import models
+    from django.utils import timezone
+    from django.utils.translation import ugettext_lazy as _
     has_django = True
 except:
     has_django = False
 
-import decimal
 import base64
+import datetime
+import decimal
 import struct
 
 CRC24_INIT = 0xB704CE
@@ -219,6 +223,14 @@ if has_django:
 
     class EncryptedCharField (BaseEncryptedField):
         __metaclass__ = models.SubfieldBase
+        description = _('String (up to %(max_length)s)')
+
+        def __init__(self, **kwargs):
+            # We don't want to restrict the max_length of an EncryptedCharField
+            # because of the extra characters from encryption, but we'd like
+            # to use the same interface as CharField
+            kwargs.pop('max_length')
+            super(EncryptedCharField, self).__init__(**kwargs)
 
         def formfield(self, **kwargs):
             defaults = {'widget': forms.TextInput}
@@ -227,6 +239,7 @@ if has_django:
 
     class EncryptedDecimalField (BaseEncryptedField):
         __metaclass__ = models.SubfieldBase
+        description = _('Decimal number')
 
         def formfield(self, **kwargs):
             defaults = {'form_class': forms.DecimalField}
@@ -238,8 +251,17 @@ if has_django:
                 return decimal.Decimal(super(EncryptedDecimalField, self).to_python(value))
             return value
 
+
     class EncryptedDateField (BaseEncryptedField):
         __metaclass__ = models.SubfieldBase
+        description = _('Date (without time)')
+
+        def __init__(self, auto_now=False, auto_now_add=False, **kwargs):
+            self.auto_now, self.auto_now_add = auto_now, auto_now_add
+            if auto_now or auto_now_add:
+                kwargs['editable'] = False
+                kwargs['blank'] = True
+            super(EncryptedDateField, self).__init__(**kwargs)
 
         def formfield(self, **kwargs):
             defaults = {'widget': forms.DateInput}
@@ -247,27 +269,46 @@ if has_django:
             return super(EncryptedDateField, self).formfield(**defaults)
 
         def to_python(self, value):
-            if value:
-                from dateutil import parser
-                return parser.parse(super(EncryptedDateField, self).to_python(value)).date()
-            return value
+            unecrypted_value = super(EncryptedDateField, self).to_python(value)
+            return self._parse_value(unecrypted_value)
 
-    class EncryptedDateTimeField (BaseEncryptedField):
+        def value_to_string(self, obj):
+            val = self._get_val_from_obj(obj)
+            return '' if val is None else val.isoformat()
+
+        def pre_save(self, model_instance, add):
+            if self.auto_now or (self.auto_now_add and add):
+                value = self._get_auto_now_value()
+                setattr(model_instance, self.attname, value)
+                return value
+            else:
+                return super(EncryptedDateField, self).pre_save(model_instance, add)
+
+        def _parse_value(self, value):
+            return models.DateField().to_python(value)
+
+        def _get_auto_now_value(self):
+            return datetime.date.today()
+
+    class EncryptedDateTimeField (EncryptedDateField):
         __metaclass__ = models.SubfieldBase
+        description = _('Date (with time)')
 
         def formfield(self, **kwargs):
             defaults = {'widget': forms.DateTimeInput}
             defaults.update(kwargs)
-            return super(EncryptedCharField, self).formfield(**defaults)
+            return super(EncryptedDateTimeField, self).formfield(**defaults)
 
-        def to_python(self, value):
-            if value:
-                from dateutil import parser
-                return parser.parse(super(EncryptedDateField, self).to_python(value))
-            return value
+        def _parse_value(self, value):
+            return models.DateTimeField().to_python(value)
+
+        def _get_auto_now_value(self):
+            return timezone.now()
 
     class EncryptedEmailField (BaseEncryptedField):
         __metaclass__ = models.SubfieldBase
+        default_validators = [validators.validate_email]
+        description = _('Email address')
 
         def formfield(self, **kwargs):
             defaults = {'form_class': forms.EmailField}
