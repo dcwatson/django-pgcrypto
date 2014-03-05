@@ -269,6 +269,8 @@ if has_django:
             return super(EncryptedDateField, self).formfield(**defaults)
 
         def to_python(self, value):
+            if value in self.empty_values:
+                return None
             unecrypted_value = super(EncryptedDateField, self).to_python(value)
             return self._parse_value(unecrypted_value)
 
