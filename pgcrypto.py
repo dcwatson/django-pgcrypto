@@ -12,10 +12,11 @@
 #
 # See http://www.ietf.org/rfc/rfc2440.txt for ASCII Armor specs.
 
-__version_info__ = (1, 1, 1)
+__version_info__ = (1, 2, 0)
 __version__ = '.'.join(str(i) for i in __version_info__)
 
 try:
+    import django
     from django import forms
     from django.conf import settings
     from django.core import validators
@@ -49,18 +50,17 @@ def crc24(data):
                 crc ^= CRC24_POLY
     return crc & 0xFFFFFF
 
-def armor(data):
+def armor(data, versioned=True):
     """
     Returns a string in ASCII Armor format, for the given binary data. The
     output of this is compatiple with pgcrypto's armor/dearmor functions.
     """
-    template = '-----BEGIN PGP MESSAGE-----\n%(headers)s\n\n%(body)s\n=%(crc)s\n-----END PGP MESSAGE-----'
-    headers = ['Version: django-pgcrypto %s' % __version__]
+    template = '-----BEGIN PGP MESSAGE-----\n%(headers)s%(body)s\n=%(crc)s\n-----END PGP MESSAGE-----'
     body = base64.b64encode(data)
     # The 24-bit CRC should be in big-endian, strip off the first byte (it's already masked in crc24).
     crc = base64.b64encode(struct.pack('>L', crc24(data))[1:])
     return template % {
-        'headers': '\n'.join(headers),
+        'headers': 'Version: django-pgcrypto %s\n\n' % __version__ if versioned else '',
         'body': body.decode('ascii'),
         'crc': crc.decode('ascii'),
     }
@@ -202,7 +202,7 @@ if has_django:
                 return unpad(self.get_cipher().decrypt(dearmor(value, verify=self.check_armor)), self.cipher_class.block_size).decode(self.charset)
             return value or ''
 
-        def get_prep_value(self, value):
+        def get_db_prep_save(self, value, connection):
             if value and not self.is_encrypted(value):
                 # If we have a value and it's not encrypted, do the following before storing in the database:
                 #    1. Convert it to a unicode string (by calling unicode).
@@ -229,7 +229,7 @@ if has_django:
             # We don't want to restrict the max_length of an EncryptedCharField
             # because of the extra characters from encryption, but we'd like
             # to use the same interface as CharField
-            kwargs.pop('max_length')
+            kwargs.pop('max_length', None)
             super(EncryptedCharField, self).__init__(**kwargs)
 
         def formfield(self, **kwargs):
@@ -316,3 +316,54 @@ if has_django:
             defaults = {'form_class': forms.EmailField}
             defaults.update(kwargs)
             return super(EncryptedCharField, self).formfield(**defaults)
+
+    # Django 1.7 custom lookups
+    
+    if django.VERSION >= (1, 7):
+        
+        from django.db.models.lookups import Lookup
+    
+        class EncryptedLookup (Lookup):
+            cast = ''
+            operator = '='
+        
+            def as_postgresql(self, qn, connection):
+                lhs, lhs_params = self.process_lhs(qn, connection)
+                rhs, rhs_params = self.process_rhs(qn, connection)
+                params = lhs_params + [self.lhs.source.cipher_key] + rhs_params
+                return "convert_from(decrypt(dearmor(%s), %%s, 'aes'), 'utf-8')%s %s %s" % (lhs, self.cast, self.operator, rhs), params
+
+        class EncryptedExact (EncryptedLookup):
+            lookup_name = 'exact'
+
+        class EncryptedDecimalExact (EncryptedLookup):
+            lookup_name = 'exact'
+            cast = '::numeric'
+
+        class EncryptedDecimalGreaterThan (EncryptedLookup):
+            lookup_name = 'gt'
+            cast = '::numeric'
+            operator = '>'
+
+        class EncryptedDecimalGreaterThanEqual (EncryptedLookup):
+            lookup_name = 'gte'
+            cast = '::numeric'
+            operator = '>='
+
+        class EncryptedDecimalLessThan (EncryptedLookup):
+            lookup_name = 'lt'
+            cast = '::numeric'
+            operator = '<'
+
+        class EncryptedDecimalLessThanEqual (EncryptedLookup):
+            lookup_name = 'lte'
+            cast = '::numeric'
+            operator = '<='
+
+        BaseEncryptedField.register_lookup(EncryptedExact)
+    
+        EncryptedDecimalField.register_lookup(EncryptedDecimalExact)
+        EncryptedDecimalField.register_lookup(EncryptedDecimalGreaterThan)
+        EncryptedDecimalField.register_lookup(EncryptedDecimalGreaterThanEqual)
+        EncryptedDecimalField.register_lookup(EncryptedDecimalLessThan)
+        EncryptedDecimalField.register_lookup(EncryptedDecimalLessThanEqual)

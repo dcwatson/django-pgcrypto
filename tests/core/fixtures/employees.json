@@ -1,0 +1,20 @@
+[
+{
+    "fields": {
+        "name": "John Smith",
+        "ssn": "999-05-6728",
+        "salary": "52000.00"
+    },
+    "model": "core.employee",
+    "pk": 1
+},
+{
+    "fields": {
+        "name": "Sally Johnson",
+        "ssn": "666-27-9811",
+        "salary": "75248.77"
+    },
+    "model": "core.employee",
+    "pk": 2
+}
+]
