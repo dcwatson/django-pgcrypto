@@ -3,7 +3,8 @@
     "fields": {
         "name": "John Smith",
         "ssn": "999-05-6728",
-        "salary": "52000.00"
+        "salary": "52000.00",
+        "date_hired": "1999-01-23"
     },
     "model": "core.employee",
     "pk": 1
@@ -12,7 +13,8 @@
     "fields": {
         "name": "Sally Johnson",
         "ssn": "666-27-9811",
-        "salary": "75248.77"
+        "salary": "75248.77",
+        "date_hired": "1996-02-28"
     },
     "model": "core.employee",
     "pk": 2

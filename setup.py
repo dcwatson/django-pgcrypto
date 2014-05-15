@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 import pgcrypto
 
 setup(
@@ -9,7 +9,7 @@ setup(
     author_email='dcwatson@gmail.com',
     url='https://github.com/dcwatson/django-pgcrypto',
     license='BSD',
-    py_modules=['pgcrypto'],
+    packages=find_packages(),
     install_requires=[
         'pycrypto>=2.6',
     ],

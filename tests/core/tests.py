@@ -4,6 +4,8 @@ from pgcrypto import pad, unpad, armor, dearmor, aes_pad_key
 from .models import Employee
 import unittest
 import decimal
+import json
+import os
 
 class CryptoTests (unittest.TestCase):
 
@@ -53,12 +55,23 @@ class FieldTests (TestCase):
         c.execute('CREATE EXTENSION pgcrypto')
 
     def test_query(self):
-        self.assertEqual(Employee.objects.get(ssn='999-05-6728').pk, 1)
+        fixture_path = os.path.join(os.path.dirname(__file__), 'fixtures', 'employees.json')
+        for obj in json.load(open(fixture_path, 'rb')):
+            if obj['model'] == 'core.employee':
+                e = Employee.objects.get(ssn=obj['fields']['ssn'])
+                self.assertEqual(e.pk, int(obj['pk']))
+                self.assertEqual(e.salary, decimal.Decimal(obj['fields']['salary']))
+                self.assertEqual(e.date_hired.isoformat(), obj['fields']['date_hired'])
 
-    def test_decimal(self):
+    def test_decimal_lookups(self):
         self.assertEqual(Employee.objects.filter(salary=decimal.Decimal('75248.77')).count(), 1)
         self.assertEqual(Employee.objects.filter(salary__gte=decimal.Decimal('75248.77')).count(), 1)
         self.assertEqual(Employee.objects.filter(salary__gt=decimal.Decimal('75248.77')).count(), 0)
         self.assertEqual(Employee.objects.filter(salary__gte=decimal.Decimal('70000.00')).count(), 1)
         self.assertEqual(Employee.objects.filter(salary__lte=decimal.Decimal('70000.00')).count(), 1)
         self.assertEqual(Employee.objects.filter(salary__lt=decimal.Decimal('52000')).count(), 0)
+
+    def test_date_lookups(self):
+        self.assertEqual(Employee.objects.filter(date_hired='1999-01-23').count(), 1)
+        self.assertEqual(Employee.objects.filter(date_hired__gte='1999-01-01').count(), 1)
+        self.assertEqual(Employee.objects.filter(date_hired__gt='1981-01-01').count(), 2)
