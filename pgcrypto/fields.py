@@ -212,7 +212,7 @@ class EncryptedEmailField (BaseEncryptedField):
     def formfield(self, **kwargs):
         defaults = {'form_class': forms.EmailField}
         defaults.update(kwargs)
-        return super(EncryptedCharField, self).formfield(**defaults)
+        return super(EncryptedEmailField, self).formfield(**defaults)
 
 
 if django.VERSION >= (1, 7):
