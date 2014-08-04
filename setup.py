@@ -1,9 +1,9 @@
 from setuptools import setup, find_packages
-import pgcrypto
+from pgcrypto.base import __version__
 
 setup(
     name='django-pgcrypto',
-    version=pgcrypto.__version__,
+    version=__version__,
     description='Python and Django utilities for encrypted fields using pgcrypto.',
     author='Dan Watson',
     author_email='dcwatson@gmail.com',
