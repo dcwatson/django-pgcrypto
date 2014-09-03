@@ -14,6 +14,10 @@ INSTALLED_APPS = (
     'core',
 )
 
+MIDDLEWARE_CLASSES = (
+    'django.middleware.common.CommonMiddleware',
+)
+
 ROOT_URLCONF = 'urls'
 
 DATABASES = {

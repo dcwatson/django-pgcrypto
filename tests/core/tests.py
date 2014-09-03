@@ -75,3 +75,6 @@ class FieldTests (TestCase):
         self.assertEqual(Employee.objects.filter(date_hired='1999-01-23').count(), 1)
         self.assertEqual(Employee.objects.filter(date_hired__gte='1999-01-01').count(), 1)
         self.assertEqual(Employee.objects.filter(date_hired__gt='1981-01-01').count(), 2)
+
+    def test_multi_lookups(self):
+        self.assertEqual(Employee.objects.filter(date_hired__gt='1981-01-01', salary__lt=60000).count(), 1)

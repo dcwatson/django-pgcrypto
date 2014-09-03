@@ -1,8 +1,3 @@
-.. django-pgcrypto documentation master file, created by
-   sphinx-quickstart on Mon May 12 23:14:40 2014.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Welcome to django-pgcrypto's documentation!
 ===========================================
 
@@ -32,7 +27,14 @@ If not specified when creating the field (as in the ``date_hired`` field above),
     The default key to use for encryption.
 
 
-Contents:
+Querying
+--------
+
+With Django 1.7, it is possible to filter on encrypted fields as you would normal fields via ``exact``, ``gt``, ``gte``,
+``lt``, and ``lte`` lookups. For example, querying the model above is possible like so::
+
+    Employee.objects.filter(date_hired__gt='1981-01-01', salary__lt=60000)
+
 
 .. toctree::
    :maxdepth: 2
