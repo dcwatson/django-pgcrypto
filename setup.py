@@ -12,13 +12,15 @@ setup(
     packages=find_packages(),
     install_requires=[
         'pycrypto>=2.6',
+        'Django>=1.6',
     ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Framework :: Django',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
-        'Programming Language :: Python',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 3',
         'Topic :: Database',
     ]
 )

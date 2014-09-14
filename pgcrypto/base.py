@@ -2,9 +2,9 @@ __version_info__ = (1, 2, 0)
 __version__ = '.'.join(str(i) for i in __version_info__)
 
 import base64
-import datetime
-import decimal
 import struct
+
+from django.utils import six
 
 CRC24_INIT = 0xB704CE
 CRC24_POLY = 0x1864CFB
@@ -110,7 +110,7 @@ def pad(text, block_size, zero=False):
     by pgcrypto. See http://www.di-mgt.com.au/cryptopad.html for more information.
     """
     num = block_size - (len(text) % block_size)
-    ch = '\0' if zero else chr(num)
+    ch = b'\0' if zero else six.b(chr(num))
     return text + (ch * num)
 
 def aes_pad_key(key):
