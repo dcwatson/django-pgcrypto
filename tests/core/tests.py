@@ -28,7 +28,7 @@ class CryptoTests (unittest.TestCase):
 
     def test_encrypt(self):
         c = Blowfish.new('pass', Blowfish.MODE_CBC, self.iv_blowfish)
-        self.assertEqual(c.encrypt(pad('sensitive information', c.block_size)), self.encrypt_bf)
+        self.assertEqual(c.encrypt(pad(b'sensitive information', c.block_size)), self.encrypt_bf)
 
     def test_decrypt(self):
         c = Blowfish.new('pass', Blowfish.MODE_CBC, self.iv_blowfish)
@@ -39,11 +39,11 @@ class CryptoTests (unittest.TestCase):
         self.assertEqual(dearmor(a), self.encrypt_bf)
 
     def test_aes(self):
-        c = AES.new(aes_pad_key('pass'), AES.MODE_CBC, self.iv_aes)
-        self.assertEqual(c.encrypt(pad('sensitive information', c.block_size)), self.encrypt_aes)
+        c = AES.new(aes_pad_key(b'pass'), AES.MODE_CBC, self.iv_aes)
+        self.assertEqual(c.encrypt(pad(b'sensitive information', c.block_size)), self.encrypt_aes)
 
     def test_aes_pad(self):
-        c = AES.new(aes_pad_key('secret'), AES.MODE_CBC, self.iv_aes)
+        c = AES.new(aes_pad_key(b'secret'), AES.MODE_CBC, self.iv_aes)
         self.assertEqual(unpad(c.decrypt(self.encrypt_aes_padded), c.block_size), b'xxxxxxxxxxxxxxxx')
 
 class FieldTests (TestCase):
@@ -56,7 +56,7 @@ class FieldTests (TestCase):
 
     def test_query(self):
         fixture_path = os.path.join(os.path.dirname(__file__), 'fixtures', 'employees.json')
-        for obj in json.load(open(fixture_path, 'rb')):
+        for obj in json.load(open(fixture_path, 'r')):
             if obj['model'] == 'core.employee':
                 e = Employee.objects.get(ssn=obj['fields']['ssn'])
                 self.assertEqual(e.pk, int(obj['pk']))

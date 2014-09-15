@@ -3,7 +3,7 @@ from django import forms
 from django.conf import settings
 from django.core import validators
 from django.db import models
-from django.utils import timezone
+from django.utils import timezone, six
 from django.utils.translation import ugettext_lazy as _
 from .base import armor, dearmor, pad, unpad, aes_pad_key
 import datetime
@@ -21,8 +21,8 @@ class BaseEncryptedField (models.Field):
         self.cipher_key = kwargs.pop('key', getattr(settings, 'PGCRYPTO_DEFAULT_KEY', ''))
         self.charset = 'utf-8'
         if self.cipher_name == 'AES':
-            self.cipher_key = aes_pad_key(self.cipher_key)
-        mod = __import__('Crypto.Cipher', globals(), locals(), [self.cipher_name], -1)
+            self.cipher_key = aes_pad_key(self.cipher_key.encode(self.charset))
+        mod = __import__('Crypto.Cipher', globals(), locals(), [self.cipher_name], 0)
         self.cipher_class = getattr(mod, self.cipher_name)
         self.check_armor = kwargs.pop('check_armor', True)
         super(BaseEncryptedField, self).__init__(*args, **kwargs)
@@ -36,7 +36,7 @@ class BaseEncryptedField (models.Field):
         """
         from south.modelsinspector import introspector
         args, kwargs = introspector(self)
-        return ("django.db.models.fields.TextField", args, kwargs)
+        return "django.db.models.fields.TextField", args, kwargs
 
     def deconstruct(self):
         """
@@ -62,7 +62,7 @@ class BaseEncryptedField (models.Field):
         """
         Returns whether the given value is encrypted (and armored) or not.
         """
-        return isinstance(value, basestring) and value.startswith('-----BEGIN')
+        return isinstance(value, six.string_types) and value.startswith('-----BEGIN')
 
     def to_python(self, value):
         if self.is_encrypted(value):
@@ -71,7 +71,8 @@ class BaseEncryptedField (models.Field):
             #    2. Decrypt the bytestring using the specified cipher.
             #    3. Unpad the bytestring using the cipher's block size.
             #    4. Decode the bytestring to a unicode string using the specified charset.
-            return unpad(self.get_cipher().decrypt(dearmor(value, verify=self.check_armor)), self.cipher_class.block_size).decode(self.charset)
+            return unpad(self.get_cipher().decrypt(dearmor(value, verify=self.check_armor)),
+                         self.cipher_class.block_size).decode(self.charset)
         return value or ''
 
     def get_db_prep_save(self, value, connection):
@@ -82,12 +83,12 @@ class BaseEncryptedField (models.Field):
             #    3. Pad the bytestring for encryption, using the cipher's block size.
             #    4. Encrypt the padded bytestring using the specified cipher.
             #    5. Armor the encrypted bytestring for storage in the text field.
-            return armor(self.get_cipher().encrypt(pad(unicode(value).encode(self.charset), self.cipher_class.block_size)))
+            return armor(self.get_cipher().encrypt(pad(six.text_type(value).encode(self.charset),
+                                                       self.cipher_class.block_size)))
         return value or ''
 
 
-class EncryptedTextField (BaseEncryptedField):
-    __metaclass__ = models.SubfieldBase
+class EncryptedTextField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
     description = _('Text')
 
     def formfield(self, **kwargs):
@@ -96,8 +97,7 @@ class EncryptedTextField (BaseEncryptedField):
         return super(EncryptedTextField, self).formfield(**defaults)
 
 
-class EncryptedCharField (BaseEncryptedField):
-    __metaclass__ = models.SubfieldBase
+class EncryptedCharField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
     description = _('String')
 
     def __init__(self, **kwargs):
@@ -113,8 +113,7 @@ class EncryptedCharField (BaseEncryptedField):
         return super(EncryptedCharField, self).formfield(**defaults)
 
 
-class EncryptedIntegerField (BaseEncryptedField):
-    __metaclass__ = models.SubfieldBase
+class EncryptedIntegerField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
     description = _('Integer')
     field_cast = '::integer'
 
@@ -129,8 +128,7 @@ class EncryptedIntegerField (BaseEncryptedField):
         return value
 
 
-class EncryptedDecimalField (BaseEncryptedField):
-    __metaclass__ = models.SubfieldBase
+class EncryptedDecimalField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
     description = _('Decimal number')
     field_cast = '::numeric'
 
@@ -145,8 +143,7 @@ class EncryptedDecimalField (BaseEncryptedField):
         return value
 
 
-class EncryptedDateField (BaseEncryptedField):
-    __metaclass__ = models.SubfieldBase
+class EncryptedDateField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
     description = _('Date (without time)')
     field_cast = '::date'
 
@@ -187,8 +184,7 @@ class EncryptedDateField (BaseEncryptedField):
         return datetime.date.today()
 
 
-class EncryptedDateTimeField (EncryptedDateField):
-    __metaclass__ = models.SubfieldBase
+class EncryptedDateTimeField (six.with_metaclass(models.SubfieldBase, EncryptedDateField)):
     description = _('Date (with time)')
     field_cast = 'timestamp with time zone'
 
@@ -204,15 +200,14 @@ class EncryptedDateTimeField (EncryptedDateField):
         return timezone.now()
 
 
-class EncryptedEmailField (BaseEncryptedField):
-    __metaclass__ = models.SubfieldBase
+class EncryptedEmailField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
     default_validators = [validators.validate_email]
     description = _('Email address')
 
     def formfield(self, **kwargs):
         defaults = {'form_class': forms.EmailField}
         defaults.update(kwargs)
-        return super(EncryptedCharField, self).formfield(**defaults)
+        return super(EncryptedEmailField, self).formfield(**defaults)
 
 
 if django.VERSION >= (1, 7):
