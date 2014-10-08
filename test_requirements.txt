@@ -1,2 +1,4 @@
 -e .
+colour-runner==0.0.4
 coverage==3.7.1
+django==1.7

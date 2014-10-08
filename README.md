@@ -1,4 +1,4 @@
-django-pgcrypto
+django-pgcrypto [![Build Status](https://travis-ci.org/dcwatson/django-pgcrypto.png?brange=merge-version)](https://travis-ci.org/dcwatson/django-pgcrypto)
 ===============
 
 A set of utility functions for dealing with ASCII Armor (http://www.ietf.org/rfc/rfc2440.txt) and padding, and
