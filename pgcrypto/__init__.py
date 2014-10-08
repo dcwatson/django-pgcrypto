@@ -12,9 +12,4 @@
 #
 # See http://www.ietf.org/rfc/rfc2440.txt for ASCII Armor specs.
 
-from .base import __version__, __version_info__, armor, dearmor, pad, unpad, aes_pad_key
-
-try:
-    from .fields import *
-except ImportError:
-    pass
+VERSION = '1.2.1'
