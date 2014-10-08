@@ -3,7 +3,7 @@ import pgcrypto
 
 setup(
     name='django-pgcrypto',
-    version=pgcrypto.__version__,
+    version=pgcrypto.VERSION,
     description='Python and Django utilities for encrypted fields using pgcrypto.',
     author='Dan Watson',
     author_email='dcwatson@gmail.com',

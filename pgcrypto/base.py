@@ -1,6 +1,3 @@
-__version_info__ = (1, 2, 0)
-__version__ = '.'.join(str(i) for i in __version_info__)
-
 import base64
 import struct
 
@@ -37,7 +34,7 @@ def armor(data, versioned=True):
     # The 24-bit CRC should be in big-endian, strip off the first byte (it's already masked in crc24).
     crc = base64.b64encode(struct.pack('>L', crc24(data))[1:])
     return template % {
-        'headers': 'Version: django-pgcrypto %s\n\n' % __version__ if versioned else '',
+        'headers': 'Version: django-pgcrypto {}\n\n'.format(VERSION),
         'body': body.decode('ascii'),
         'crc': crc.decode('ascii'),
     }
