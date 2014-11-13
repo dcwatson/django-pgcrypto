@@ -25,7 +25,7 @@ setup(
     license='BSD',
     packages=find_packages(),
     install_requires=[
-        'Django>=1.6',
+        'Django>=1.5',
         'PyCrypto>=2.6',
     ],
     classifiers=[
