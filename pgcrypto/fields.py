@@ -100,12 +100,12 @@ class EncryptedTextField (six.with_metaclass(models.SubfieldBase, BaseEncryptedF
 class EncryptedCharField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
     description = _('String')
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         # We don't want to restrict the max_length of an EncryptedCharField
         # because of the extra characters from encryption, but we'd like
         # to use the same interface as CharField
         kwargs.pop('max_length', None)
-        super(EncryptedCharField, self).__init__(**kwargs)
+        super(EncryptedCharField, self).__init__(*args, **kwargs)
 
     def formfield(self, **kwargs):
         defaults = {'widget': forms.TextInput}
@@ -147,7 +147,8 @@ class EncryptedDateField (six.with_metaclass(models.SubfieldBase, BaseEncryptedF
     description = _('Date (without time)')
     field_cast = '::date'
 
-    def __init__(self, auto_now=False, auto_now_add=False, **kwargs):
+    def __init__(self, verbose_name=None, name=None, auto_now=False,
+                 auto_now_add=False, **kwargs):
         self.auto_now, self.auto_now_add = auto_now, auto_now_add
         if auto_now or auto_now_add:
             kwargs['editable'] = False
