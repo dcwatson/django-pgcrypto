@@ -75,6 +75,14 @@ class BaseEncryptedField (models.Field):
                          self.cipher_class.block_size).decode(self.charset)
         return value or ''
 
+    def get_db_prep_lookup(self, lookup_type, value, connection,
+                           prepared=False):
+        """Allow exact lookups by value for Django < 1.7."""
+        if django.VERSION < (1, 7):
+            value = self.get_db_prep_save(value, connection)
+        args = (lookup_type, value, connection, prepared)
+        return super(BaseEncryptedField, self).get_db_prep_lookup(*args)
+
     def get_db_prep_save(self, value, connection):
         if value and not self.is_encrypted(value):
             # If we have a value and it's not encrypted, do the following before storing in the database:
