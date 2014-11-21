@@ -73,7 +73,7 @@ class BaseEncryptedField (models.Field):
             #    4. Decode the bytestring to a unicode string using the specified charset.
             return unpad(self.get_cipher().decrypt(dearmor(value, verify=self.check_armor)),
                          self.cipher_class.block_size).decode(self.charset)
-        return value or ''
+        return value or six.text_type('')
 
     def get_db_prep_lookup(self, lookup_type, value, connection,
                            prepared=False):
@@ -93,7 +93,7 @@ class BaseEncryptedField (models.Field):
             #    5. Armor the encrypted bytestring for storage in the text field.
             return armor(self.get_cipher().encrypt(pad(six.text_type(value).encode(self.charset),
                                                        self.cipher_class.block_size)))
-        return value or ''
+        return value or six.text_type('')
 
 
 class EncryptedTextField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
