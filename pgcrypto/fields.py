@@ -73,7 +73,15 @@ class BaseEncryptedField (models.Field):
             #    4. Decode the bytestring to a unicode string using the specified charset.
             return unpad(self.get_cipher().decrypt(dearmor(value, verify=self.check_armor)),
                          self.cipher_class.block_size).decode(self.charset)
-        return value or ''
+        return value or six.text_type('')
+
+    def get_db_prep_lookup(self, lookup_type, value, connection,
+                           prepared=False):
+        """Allow exact lookups by value for Django < 1.7."""
+        if django.VERSION < (1, 7):
+            value = self.get_db_prep_save(value, connection)
+        args = (lookup_type, value, connection, prepared)
+        return super(BaseEncryptedField, self).get_db_prep_lookup(*args)
 
     def get_db_prep_save(self, value, connection):
         if value and not self.is_encrypted(value):
@@ -85,7 +93,7 @@ class BaseEncryptedField (models.Field):
             #    5. Armor the encrypted bytestring for storage in the text field.
             return armor(self.get_cipher().encrypt(pad(six.text_type(value).encode(self.charset),
                                                        self.cipher_class.block_size)))
-        return value or ''
+        return value or six.text_type('')
 
 
 class EncryptedTextField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
@@ -100,12 +108,12 @@ class EncryptedTextField (six.with_metaclass(models.SubfieldBase, BaseEncryptedF
 class EncryptedCharField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
     description = _('String')
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         # We don't want to restrict the max_length of an EncryptedCharField
         # because of the extra characters from encryption, but we'd like
         # to use the same interface as CharField
         kwargs.pop('max_length', None)
-        super(EncryptedCharField, self).__init__(**kwargs)
+        super(EncryptedCharField, self).__init__(*args, **kwargs)
 
     def formfield(self, **kwargs):
         defaults = {'widget': forms.TextInput}
@@ -147,7 +155,8 @@ class EncryptedDateField (six.with_metaclass(models.SubfieldBase, BaseEncryptedF
     description = _('Date (without time)')
     field_cast = '::date'
 
-    def __init__(self, auto_now=False, auto_now_add=False, **kwargs):
+    def __init__(self, verbose_name=None, name=None, auto_now=False,
+                 auto_now_add=False, **kwargs):
         self.auto_now, self.auto_now_add = auto_now, auto_now_add
         if auto_now or auto_now_add:
             kwargs['editable'] = False
