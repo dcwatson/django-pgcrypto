@@ -1,4 +1,4 @@
-__version__ = '1.2.1'
+__version__ = '1.2.0'
 __version_info__ = (int(v) for v in __version__.split('.'))
 
 import base64

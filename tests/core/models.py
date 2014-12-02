@@ -7,7 +7,7 @@ import pgcrypto
 @python_2_unicode_compatible
 class Employee (models.Model):
     name = models.CharField(max_length=200)
-    ssn = pgcrypto.EncryptedCharField()
+    ssn = pgcrypto.EncryptedCharField('SSN')
     salary = pgcrypto.EncryptedDecimalField()
     date_hired = pgcrypto.EncryptedDateField(cipher='Blowfish', key='datekey')
 
