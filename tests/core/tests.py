@@ -1,4 +1,7 @@
 from django.test import TestCase
+from django.core.exceptions import ValidationError
+from django.db.utils import IntegrityError
+from django.db import transaction
 from Crypto.Cipher import Blowfish, AES
 from pgcrypto import pad, unpad, armor, dearmor, aes_pad_key
 from .models import Employee
@@ -78,3 +81,25 @@ class FieldTests (TestCase):
 
     def test_multi_lookups(self):
         self.assertEqual(Employee.objects.filter(date_hired__gt='1981-01-01', salary__lt=60000).count(), 1)
+
+    def test_model_validation(self):
+        obj = Employee(name='Invalid User', date_hired='2000-01-01', email='invalid')
+        try:
+            obj.full_clean()
+            self.fail('Invalid employee object passed validation')
+        except ValidationError, e:
+            for f in ('salary', 'ssn', 'email'):
+                self.assertIn(f, e.error_dict)
+
+    def test_unique(self):
+        with transaction.atomic():
+            try:
+                Employee.objects.create(name='Duplicate', date_hired='2000-01-01', email='johnson.sally@example.com')
+                self.fail('Created duplicate email (should be unique).')
+            except IntegrityError:
+                pass
+        # Make sure we can create another record with a NULL value for a unique field.
+        e = Employee.objects.create(name='NULL Email', date_hired='2000-01-01', email=None)
+        e = Employee.objects.get(pk=e.pk)
+        self.assertIs(e.email, None)
+        self.assertEqual(Employee.objects.filter(email__isnull=True).count(), 2)

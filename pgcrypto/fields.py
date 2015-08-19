@@ -25,6 +25,7 @@ class BaseEncryptedField (models.Field):
         mod = __import__('Crypto.Cipher', globals(), locals(), [self.cipher_name], 0)
         self.cipher_class = getattr(mod, self.cipher_name)
         self.check_armor = kwargs.pop('check_armor', True)
+        self.versioned = kwargs.pop('versioned', False)
         super(BaseEncryptedField, self).__init__(*args, **kwargs)
 
     def get_internal_type(self):
@@ -47,6 +48,7 @@ class BaseEncryptedField (models.Field):
             'cipher': self.cipher_name,
             'key': self.cipher_key,
             'check_armor': self.check_armor,
+            'versioned': self.versioned,
         })
         return name, path, args, kwargs
 
@@ -73,7 +75,7 @@ class BaseEncryptedField (models.Field):
             #    4. Decode the bytestring to a unicode string using the specified charset.
             return unpad(self.get_cipher().decrypt(dearmor(value, verify=self.check_armor)),
                          self.cipher_class.block_size).decode(self.charset)
-        return value or ''
+        return value
 
     def get_db_prep_save(self, value, connection):
         if value and not self.is_encrypted(value):
@@ -84,8 +86,8 @@ class BaseEncryptedField (models.Field):
             #    4. Encrypt the padded bytestring using the specified cipher.
             #    5. Armor the encrypted bytestring for storage in the text field.
             return armor(self.get_cipher().encrypt(pad(six.text_type(value).encode(self.charset),
-                                                       self.cipher_class.block_size)))
-        return value or ''
+                                                       self.cipher_class.block_size)), versioned=self.versioned)
+        return value
 
 
 class EncryptedTextField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
@@ -224,7 +226,8 @@ if django.VERSION >= (1, 7):
                 'AES': 'aes',
                 'Blowfish': 'bf',
             }[self.lhs.source.cipher_name]
-            return "convert_from(decrypt(dearmor(%s), %%s, '%s'), 'utf-8')%s %s" % (lhs, cipher, self.lhs.source.field_cast, rhs), params
+            return "convert_from(decrypt(dearmor(%s), %%s, '%s'), 'utf-8')%s %s" % \
+                (lhs, cipher, self.lhs.source.field_cast, rhs), params
 
     for lookup_name in ('exact', 'gt', 'gte', 'lt', 'lte'):
         class_name = 'EncryptedLookup_%s' % lookup_name

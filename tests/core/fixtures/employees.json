@@ -14,7 +14,8 @@
         "name": "Sally Johnson",
         "ssn": "666-27-9811",
         "salary": "75248.77",
-        "date_hired": "1996-02-28"
+        "date_hired": "1996-02-28",
+        "email": "johnson.sally@example.com"
     },
     "model": "core.employee",
     "pk": 2

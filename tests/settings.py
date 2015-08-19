@@ -23,11 +23,11 @@ ROOT_URLCONF = 'urls'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'pgcrypto',
-        'USER': getpass.getuser(),
-        'PASSWORD': '',
-        'HOST': 'localhost',
-        'PORT': 5432,
+        'NAME': os.environ.get('PGCRYPTO_TEST_DATABASE', 'postgres'),
+        'USER': os.environ.get('PGCRYPTO_TEST_USER', 'postgres'),
+        'PASSWORD': os.environ.get('PGCRYPTO_TEST_PASSWORD', ''),
+        'HOST': os.environ.get('PGCRYPTO_TEST_HOST', 'localhost'),
+        'PORT': os.environ.get('PGCRYPTO_TEST_PORT', 5432),
     }
 }
 
