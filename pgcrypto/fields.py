@@ -21,7 +21,9 @@ class BaseEncryptedField (models.Field):
         self.cipher_key = kwargs.pop('key', getattr(settings, 'PGCRYPTO_DEFAULT_KEY', ''))
         self.charset = 'utf-8'
         if self.cipher_name == 'AES':
-            self.cipher_key = aes_pad_key(self.cipher_key.encode(self.charset))
+            if isinstance(self.cipher_key, six.text_type):
+                self.cipher_key = self.cipher_key.encode(self.charset)
+            self.cipher_key = aes_pad_key(self.cipher_key)
         mod = __import__('Crypto.Cipher', globals(), locals(), [self.cipher_name], 0)
         self.cipher_class = getattr(mod, self.cipher_name)
         self.check_armor = kwargs.pop('check_armor', True)
