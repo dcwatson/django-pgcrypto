@@ -19,7 +19,7 @@ class BaseEncryptedField (models.Field):
         self.cipher_name = kwargs.pop('cipher', getattr(settings, 'PGCRYPTO_DEFAULT_CIPHER', 'AES'))
         assert self.cipher_name in valid_ciphers
         self.cipher_key = kwargs.pop('key', getattr(settings, 'PGCRYPTO_DEFAULT_KEY', ''))
-        self.charset = 'utf-8'
+        self.charset = kwargs.pop('charset', 'utf-8')
         if self.cipher_name == 'AES':
             self.cipher_key = aes_pad_key(self.cipher_key.encode(self.charset))
         mod = __import__('Crypto.Cipher', globals(), locals(), [self.cipher_name], 0)
@@ -45,8 +45,9 @@ class BaseEncryptedField (models.Field):
         """
         name, path, args, kwargs = super(BaseEncryptedField, self).deconstruct()
         kwargs.update({
+            #'key': self.cipher_key,
             'cipher': self.cipher_name,
-            'key': self.cipher_key,
+            'charset': self.charset,
             'check_armor': self.check_armor,
             'versioned': self.versioned,
         })
