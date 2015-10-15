@@ -220,14 +220,14 @@ if django.VERSION >= (1, 7):
         def as_postgresql(self, qn, connection):
             lhs, lhs_params = self.process_lhs(qn, connection)
             rhs, rhs_params = self.process_rhs(qn, connection)
-            params = lhs_params + [self.lhs.source.cipher_key] + rhs_params
+            params = lhs_params + [self.lhs.output_field.cipher_key] + rhs_params
             rhs = connection.operators[self.lookup_name] % rhs
             cipher = {
                 'AES': 'aes',
                 'Blowfish': 'bf',
-            }[self.lhs.source.cipher_name]
+            }[self.lhs.output_field.cipher_name]
             return "convert_from(decrypt(dearmor(%s), %%s, '%s'), 'utf-8')%s %s" % \
-                (lhs, cipher, self.lhs.source.field_cast, rhs), params
+                (lhs, cipher, self.lhs.output_field.field_cast, rhs), params
 
     for lookup_name in ('exact', 'gt', 'gte', 'lt', 'lte'):
         class_name = 'EncryptedLookup_%s' % lookup_name

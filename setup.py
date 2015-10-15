@@ -17,7 +17,6 @@ setup(
     packages=find_packages(),
     install_requires=[
         'pycrypto>=2.6',
-        'Django>=1.5',
     ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
