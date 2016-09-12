@@ -4,16 +4,20 @@ __version_info__ = (int(v) for v in __version__.split('.'))
 import base64
 import struct
 
+
 CRC24_INIT = 0xB704CE
 CRC24_POLY = 0x1864CFB
 
+
 class BadChecksumError (Exception):
     pass
+
 
 def ord_safe(ch):
     if isinstance(ch, int):
         return ch
     return ord(ch)
+
 
 def crc24(data):
     crc = CRC24_INIT
@@ -24,6 +28,7 @@ def crc24(data):
             if crc & 0x1000000:
                 crc ^= CRC24_POLY
     return crc & 0xFFFFFF
+
 
 def armor(data, versioned=True):
     """
@@ -39,6 +44,7 @@ def armor(data, versioned=True):
         'body': body.decode('ascii'),
         'crc': crc.decode('ascii'),
     }
+
 
 def dearmor(text, verify=True):
     """
@@ -83,6 +89,7 @@ def dearmor(text, verify=True):
             raise BadChecksumError()
     return data
 
+
 def unpad(text, block_size):
     """
     Takes the last character of the text, and if it is less than the block_size,
@@ -101,6 +108,7 @@ def unpad(text, block_size):
         end -= 1
     return text[:end]
 
+
 def pad(text, block_size, zero=False):
     """
     Given a text string and a block size, pads the text with bytes of the same value
@@ -110,6 +118,7 @@ def pad(text, block_size, zero=False):
     num = block_size - (len(text) % block_size)
     ch = b'\0' if zero else chr(num).encode('latin-1')
     return text + (ch * num)
+
 
 def aes_pad_key(key):
     """

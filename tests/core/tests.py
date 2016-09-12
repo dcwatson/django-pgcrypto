@@ -1,14 +1,18 @@
-from django.test import TestCase
+from Crypto.Cipher import AES, Blowfish
 from django.core.exceptions import ValidationError
-from django.db.utils import IntegrityError
 from django.db import transaction
-from Crypto.Cipher import Blowfish, AES
-from pgcrypto import pad, unpad, armor, dearmor, aes_pad_key
+from django.db.utils import IntegrityError
+from django.test import TestCase
+
+from pgcrypto import aes_pad_key, armor, dearmor, pad, unpad
+
 from .models import Employee
-import unittest
+
 import decimal
 import json
 import os
+import unittest
+
 
 class CryptoTests (unittest.TestCase):
 
@@ -48,6 +52,7 @@ class CryptoTests (unittest.TestCase):
     def test_aes_pad(self):
         c = AES.new(aes_pad_key(b'secret'), AES.MODE_CBC, self.iv_aes)
         self.assertEqual(unpad(c.decrypt(self.encrypt_aes_padded), c.block_size), b'xxxxxxxxxxxxxxxx')
+
 
 class FieldTests (TestCase):
     fixtures = ('employees',)

@@ -1,12 +1,14 @@
-import django
 from django import forms
 from django.conf import settings
 from django.core import validators
 from django.db import models
-from django.utils import timezone, six
-from django.utils.translation import ugettext_lazy as _
+from django.utils import six, timezone
 from django.utils.encoding import force_text
-from .base import armor, dearmor, pad, unpad, aes_pad_key
+from django.utils.translation import ugettext_lazy as _
+import django
+
+from .base import aes_pad_key, armor, dearmor, pad, unpad
+
 import datetime
 import decimal
 
@@ -224,6 +226,7 @@ if django.VERSION >= (1, 7):
     from django.db.models.lookups import Lookup
 
     class EncryptedLookup (Lookup):
+
         def as_postgresql(self, qn, connection):
             lhs, lhs_params = self.process_lhs(qn, connection)
             rhs, rhs_params = self.process_rhs(qn, connection)
