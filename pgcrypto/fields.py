@@ -5,6 +5,7 @@ from django.core import validators
 from django.db import models
 from django.utils import timezone, six
 from django.utils.translation import ugettext_lazy as _
+from django.utils.encoding import force_text
 from .base import armor, dearmor, pad, unpad, aes_pad_key
 import datetime
 import decimal
@@ -80,6 +81,9 @@ class BaseEncryptedField (models.Field):
                          self.cipher_class.block_size).decode(self.charset)
         return value
 
+    def from_db_value(self, value, expression, connection, context):
+        return self.to_python(value)
+
     def get_db_prep_save(self, value, connection):
         if value and not self.is_encrypted(value):
             # If we have a value and it's not encrypted, do the following before storing in the database:
@@ -88,12 +92,12 @@ class BaseEncryptedField (models.Field):
             #    3. Pad the bytestring for encryption, using the cipher's block size.
             #    4. Encrypt the padded bytestring using the specified cipher.
             #    5. Armor the encrypted bytestring for storage in the text field.
-            return armor(self.get_cipher().encrypt(pad(six.text_type(value).encode(self.charset),
+            return armor(self.get_cipher().encrypt(pad(force_text(value).encode(self.charset),
                                                        self.cipher_class.block_size)), versioned=self.versioned)
         return value
 
 
-class EncryptedTextField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
+class EncryptedTextField (BaseEncryptedField):
     description = _('Text')
 
     def formfield(self, **kwargs):
@@ -102,7 +106,7 @@ class EncryptedTextField (six.with_metaclass(models.SubfieldBase, BaseEncryptedF
         return super(EncryptedTextField, self).formfield(**defaults)
 
 
-class EncryptedCharField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
+class EncryptedCharField (BaseEncryptedField):
     description = _('String')
 
     def __init__(self, *args, **kwargs):
@@ -118,7 +122,7 @@ class EncryptedCharField (six.with_metaclass(models.SubfieldBase, BaseEncryptedF
         return super(EncryptedCharField, self).formfield(**defaults)
 
 
-class EncryptedIntegerField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
+class EncryptedIntegerField (BaseEncryptedField):
     description = _('Integer')
     field_cast = '::integer'
 
@@ -133,7 +137,7 @@ class EncryptedIntegerField (six.with_metaclass(models.SubfieldBase, BaseEncrypt
         return value
 
 
-class EncryptedDecimalField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
+class EncryptedDecimalField (BaseEncryptedField):
     description = _('Decimal number')
     field_cast = '::numeric'
 
@@ -148,7 +152,7 @@ class EncryptedDecimalField (six.with_metaclass(models.SubfieldBase, BaseEncrypt
         return value
 
 
-class EncryptedDateField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
+class EncryptedDateField (BaseEncryptedField):
     description = _('Date (without time)')
     field_cast = '::date'
 
@@ -189,7 +193,7 @@ class EncryptedDateField (six.with_metaclass(models.SubfieldBase, BaseEncryptedF
         return datetime.date.today()
 
 
-class EncryptedDateTimeField (six.with_metaclass(models.SubfieldBase, EncryptedDateField)):
+class EncryptedDateTimeField (EncryptedDateField):
     description = _('Date (with time)')
     field_cast = 'timestamp with time zone'
 
@@ -205,7 +209,7 @@ class EncryptedDateTimeField (six.with_metaclass(models.SubfieldBase, EncryptedD
         return timezone.now()
 
 
-class EncryptedEmailField (six.with_metaclass(models.SubfieldBase, BaseEncryptedField)):
+class EncryptedEmailField (BaseEncryptedField):
     default_validators = [validators.validate_email]
     description = _('Email address')
 
