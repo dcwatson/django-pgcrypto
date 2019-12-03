@@ -2,10 +2,11 @@ from django import forms
 from django.conf import settings
 from django.core import validators
 from django.db import models
-from django.utils import six, timezone
+from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.translation import ugettext_lazy as _
 import django
+import six
 
 from .base import aes_pad_key, armor, dearmor, pad, unpad
 
