@@ -32,6 +32,8 @@ jobs:
             --health-interval 10s
             --health-timeout 5s
             --health-retries 5
+        ports:
+          - 5432:5432
     strategy:
       fail-fast: false
       matrix:
@@ -54,5 +56,4 @@ jobs:
         run: python manage.py test --noinput
         env:
           PGCRYPTO_TEST_DATABASE: django-pgcrypto-${{ matrix.django-version }}-${{ matrix.python-version }}
-          PGCRYPTO_TEST_HOST: postgres
           PGCRYPTO_TEST_PASSWORD: secret
