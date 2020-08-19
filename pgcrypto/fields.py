@@ -1,62 +1,66 @@
+import datetime
+import decimal
+
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from django import forms
 from django.conf import settings
 from django.core import validators
 from django.db import models
-from django.utils import six, timezone
-from django.utils.encoding import force_text
-from django.utils.translation import ugettext_lazy as _
-import django
+from django.db.models.lookups import Lookup
+from django.utils import timezone
+from django.utils.encoding import force_str
+from django.utils.translation import gettext_lazy as _
 
 from .base import aes_pad_key, armor, dearmor, pad, unpad
 
-import datetime
-import decimal
 
-
-class BaseEncryptedField (models.Field):
-    field_cast = ''
+class BaseEncryptedField(models.Field):
+    field_cast = ""
 
     def __init__(self, *args, **kwargs):
-        # Just in case pgcrypto and/or pycrypto support more than AES/Blowfish.
-        valid_ciphers = getattr(settings, 'PGCRYPTO_VALID_CIPHERS', ('AES', 'Blowfish'))
-        self.cipher_name = kwargs.pop('cipher', getattr(settings, 'PGCRYPTO_DEFAULT_CIPHER', 'AES'))
-        assert self.cipher_name in valid_ciphers
-        self.cipher_key = kwargs.pop('key', getattr(settings, 'PGCRYPTO_DEFAULT_KEY', ''))
-        self.charset = kwargs.pop('charset', 'utf-8')
-        if self.cipher_name == 'AES':
-            if isinstance(self.cipher_key, six.text_type):
-                self.cipher_key = self.cipher_key.encode(self.charset)
+        self.cipher_name = kwargs.pop("cipher", getattr(settings, "PGCRYPTO_DEFAULT_CIPHER", "aes")).lower()
+        # Backwards-compatibility.
+        if self.cipher_name == "blowfish":
+            self.cipher_name = "bf"
+        if self.cipher_name not in ("aes", "bf"):
+            raise ValueError("Cipher must be 'aes' or 'bf'.")
+        self.cipher_key = kwargs.pop("key", getattr(settings, "PGCRYPTO_DEFAULT_KEY", ""))
+        self.charset = kwargs.pop("charset", "utf-8")
+        if isinstance(self.cipher_key, str):
+            self.cipher_key = self.cipher_key.encode(self.charset)
+        if self.cipher_name == "aes":
             self.cipher_key = aes_pad_key(self.cipher_key)
-        mod = __import__('Crypto.Cipher', globals(), locals(), [self.cipher_name], 0)
-        self.cipher_class = getattr(mod, self.cipher_name)
-        self.check_armor = kwargs.pop('check_armor', True)
-        self.versioned = kwargs.pop('versioned', False)
-        super(BaseEncryptedField, self).__init__(*args, **kwargs)
+        self.check_armor = kwargs.pop("check_armor", True)
+        self.versioned = kwargs.pop("versioned", False)
+        super().__init__(*args, **kwargs)
 
     def get_internal_type(self):
-        return 'TextField'
-
-    def south_field_triple(self):
-        """
-        Describe the field to south for use in migrations.
-        """
-        from south.modelsinspector import introspector
-        args, kwargs = introspector(self)
-        return "django.db.models.fields.TextField", args, kwargs
+        return "TextField"
 
     def deconstruct(self):
         """
         Deconstruct the field for Django 1.7+ migrations.
         """
         name, path, args, kwargs = super(BaseEncryptedField, self).deconstruct()
-        kwargs.update({
-            #'key': self.cipher_key,
-            'cipher': self.cipher_name,
-            'charset': self.charset,
-            'check_armor': self.check_armor,
-            'versioned': self.versioned,
-        })
+        kwargs.update(
+            {
+                # 'key': self.cipher_key,
+                "cipher": self.cipher_name,
+                "charset": self.charset,
+                "check_armor": self.check_armor,
+                "versioned": self.versioned,
+            }
+        )
         return name, path, args, kwargs
+
+    @property
+    def algorithm(self):
+        return {"aes": algorithms.AES, "bf": algorithms.Blowfish}[self.cipher_name]
+
+    @property
+    def block_size(self):
+        return self.algorithm.block_size // 8
 
     def get_cipher(self):
         """
@@ -64,13 +68,21 @@ class BaseEncryptedField (models.Field):
         pgcrypto expects a zeroed block for IV (initial value), but the IV on the cipher
         object is cumulatively updated each time encrypt/decrypt is called.
         """
-        return self.cipher_class.new(self.cipher_key, self.cipher_class.MODE_CBC, b'\0' * self.cipher_class.block_size)
+        return Cipher(self.algorithm(self.cipher_key), modes.CBC(b"\0" * self.block_size), backend=default_backend())
+
+    def encrypt(self, data):
+        context = self.get_cipher().encryptor()
+        return context.update(data) + context.finalize()
+
+    def decrypt(self, data):
+        context = self.get_cipher().decryptor()
+        return context.update(data) + context.finalize()
 
     def is_encrypted(self, value):
         """
         Returns whether the given value is encrypted (and armored) or not.
         """
-        return isinstance(value, six.string_types) and value.startswith('-----BEGIN')
+        return isinstance(value, str) and value.startswith("-----BEGIN")
 
     def to_python(self, value):
         if self.is_encrypted(value):
@@ -79,11 +91,10 @@ class BaseEncryptedField (models.Field):
             #    2. Decrypt the bytestring using the specified cipher.
             #    3. Unpad the bytestring using the cipher's block size.
             #    4. Decode the bytestring to a unicode string using the specified charset.
-            return unpad(self.get_cipher().decrypt(dearmor(value, verify=self.check_armor)),
-                         self.cipher_class.block_size).decode(self.charset)
+            return unpad(self.decrypt(dearmor(value, verify=self.check_armor)), self.block_size).decode(self.charset)
         return value
 
-    def from_db_value(self, value, expression, connection, context):
+    def from_db_value(self, value, expression, connection):
         return self.to_python(value)
 
     def get_db_prep_save(self, value, connection):
@@ -94,42 +105,43 @@ class BaseEncryptedField (models.Field):
             #    3. Pad the bytestring for encryption, using the cipher's block size.
             #    4. Encrypt the padded bytestring using the specified cipher.
             #    5. Armor the encrypted bytestring for storage in the text field.
-            return armor(self.get_cipher().encrypt(pad(force_text(value).encode(self.charset),
-                                                       self.cipher_class.block_size)), versioned=self.versioned)
+            return armor(
+                self.encrypt(pad(force_str(value).encode(self.charset), self.block_size)), versioned=self.versioned,
+            )
         return value
 
 
-class EncryptedTextField (BaseEncryptedField):
-    description = _('Text')
+class EncryptedTextField(BaseEncryptedField):
+    description = _("Text")
 
     def formfield(self, **kwargs):
-        defaults = {'widget': forms.Textarea}
+        defaults = {"widget": forms.Textarea}
         defaults.update(kwargs)
         return super(EncryptedTextField, self).formfield(**defaults)
 
 
-class EncryptedCharField (BaseEncryptedField):
-    description = _('String')
+class EncryptedCharField(BaseEncryptedField):
+    description = _("String")
 
     def __init__(self, *args, **kwargs):
         # We don't want to restrict the max_length of an EncryptedCharField
         # because of the extra characters from encryption, but we'd like
         # to use the same interface as CharField
-        kwargs.pop('max_length', None)
+        kwargs.pop("max_length", None)
         super(EncryptedCharField, self).__init__(*args, **kwargs)
 
     def formfield(self, **kwargs):
-        defaults = {'widget': forms.TextInput}
+        defaults = {"widget": forms.TextInput}
         defaults.update(kwargs)
         return super(EncryptedCharField, self).formfield(**defaults)
 
 
-class EncryptedIntegerField (BaseEncryptedField):
-    description = _('Integer')
-    field_cast = '::integer'
+class EncryptedIntegerField(BaseEncryptedField):
+    description = _("Integer")
+    field_cast = "::integer"
 
     def formfield(self, **kwargs):
-        defaults = {'form_class': forms.IntegerField}
+        defaults = {"form_class": forms.IntegerField}
         defaults.update(kwargs)
         return super(EncryptedIntegerField, self).formfield(**defaults)
 
@@ -139,12 +151,12 @@ class EncryptedIntegerField (BaseEncryptedField):
         return value
 
 
-class EncryptedDecimalField (BaseEncryptedField):
-    description = _('Decimal number')
-    field_cast = '::numeric'
+class EncryptedDecimalField(BaseEncryptedField):
+    description = _("Decimal number")
+    field_cast = "::numeric"
 
     def formfield(self, **kwargs):
-        defaults = {'form_class': forms.DecimalField}
+        defaults = {"form_class": forms.DecimalField}
         defaults.update(kwargs)
         return super(EncryptedDecimalField, self).formfield(**defaults)
 
@@ -154,19 +166,19 @@ class EncryptedDecimalField (BaseEncryptedField):
         return value
 
 
-class EncryptedDateField (BaseEncryptedField):
-    description = _('Date (without time)')
-    field_cast = '::date'
+class EncryptedDateField(BaseEncryptedField):
+    description = _("Date (without time)")
+    field_cast = "::date"
 
     def __init__(self, verbose_name=None, name=None, auto_now=False, auto_now_add=False, **kwargs):
         self.auto_now, self.auto_now_add = auto_now, auto_now_add
         if auto_now or auto_now_add:
-            kwargs['editable'] = False
-            kwargs['blank'] = True
+            kwargs["editable"] = False
+            kwargs["blank"] = True
         super(EncryptedDateField, self).__init__(verbose_name, name, **kwargs)
 
     def formfield(self, **kwargs):
-        defaults = {'widget': forms.DateInput}
+        defaults = {"widget": forms.DateInput}
         defaults.update(kwargs)
         return super(EncryptedDateField, self).formfield(**defaults)
 
@@ -178,7 +190,7 @@ class EncryptedDateField (BaseEncryptedField):
 
     def value_to_string(self, obj):
         val = self._get_val_from_obj(obj)
-        return '' if val is None else val.isoformat()
+        return "" if val is None else val.isoformat()
 
     def pre_save(self, model_instance, add):
         if self.auto_now or (self.auto_now_add and add):
@@ -195,12 +207,12 @@ class EncryptedDateField (BaseEncryptedField):
         return datetime.date.today()
 
 
-class EncryptedDateTimeField (EncryptedDateField):
-    description = _('Date (with time)')
-    field_cast = 'timestamp with time zone'
+class EncryptedDateTimeField(EncryptedDateField):
+    description = _("Date (with time)")
+    field_cast = "timestamp with time zone"
 
     def formfield(self, **kwargs):
-        defaults = {'widget': forms.DateTimeInput}
+        defaults = {"widget": forms.DateTimeInput}
         defaults.update(kwargs)
         return super(EncryptedDateTimeField, self).formfield(**defaults)
 
@@ -211,35 +223,30 @@ class EncryptedDateTimeField (EncryptedDateField):
         return timezone.now()
 
 
-class EncryptedEmailField (BaseEncryptedField):
+class EncryptedEmailField(BaseEncryptedField):
     default_validators = [validators.validate_email]
-    description = _('Email address')
+    description = _("Email address")
 
     def formfield(self, **kwargs):
-        defaults = {'form_class': forms.EmailField}
+        defaults = {"form_class": forms.EmailField}
         defaults.update(kwargs)
         return super(EncryptedEmailField, self).formfield(**defaults)
 
 
-if django.VERSION >= (1, 7):
+class EncryptedLookup(Lookup):
+    def as_postgresql(self, qn, connection):
+        lhs, lhs_params = self.process_lhs(qn, connection)
+        rhs, rhs_params = self.process_rhs(qn, connection)
+        params = lhs_params + [self.lhs.output_field.cipher_key] + rhs_params
+        rhs = connection.operators[self.lookup_name] % rhs
+        return (
+            "convert_from(decrypt(dearmor(%s), %%s, '%s'), 'utf-8')%s %s"
+            % (lhs, self.lhs.output_field.cipher_name, self.lhs.output_field.field_cast, rhs),
+            params,
+        )
 
-    from django.db.models.lookups import Lookup
 
-    class EncryptedLookup (Lookup):
-
-        def as_postgresql(self, qn, connection):
-            lhs, lhs_params = self.process_lhs(qn, connection)
-            rhs, rhs_params = self.process_rhs(qn, connection)
-            params = lhs_params + [self.lhs.output_field.cipher_key] + rhs_params
-            rhs = connection.operators[self.lookup_name] % rhs
-            cipher = {
-                'AES': 'aes',
-                'Blowfish': 'bf',
-            }[self.lhs.output_field.cipher_name]
-            return "convert_from(decrypt(dearmor(%s), %%s, '%s'), 'utf-8')%s %s" % \
-                (lhs, cipher, self.lhs.output_field.field_cast, rhs), params
-
-    for lookup_name in ('exact', 'gt', 'gte', 'lt', 'lte'):
-        class_name = 'EncryptedLookup_%s' % lookup_name
-        lookup_class = type(class_name, (EncryptedLookup,), {'lookup_name': lookup_name})
-        BaseEncryptedField.register_lookup(lookup_class)
+for lookup_name in ("exact", "gt", "gte", "lt", "lte"):
+    class_name = "EncryptedLookup_%s" % lookup_name
+    lookup_class = type(class_name, (EncryptedLookup,), {"lookup_name": lookup_name})
+    BaseEncryptedField.register_lookup(lookup_class)

@@ -14,8 +14,32 @@
 
 from .base import __version__, __version_info__, aes_pad_key, armor, dearmor, pad, unpad
 
+__all__ = ["__version__", "__version_info__", "aes_pad_key", "armor", "dearmor", "pad", "unpad"]
 
 try:
-    from .fields import *
+    import django  # noqa: F401
+
+    has_django = True
 except ImportError:
-    pass
+    has_django = False
+
+if has_django:
+    from .fields import (
+        EncryptedCharField,
+        EncryptedDateField,
+        EncryptedDateTimeField,
+        EncryptedDecimalField,
+        EncryptedEmailField,
+        EncryptedIntegerField,
+        EncryptedTextField,
+    )
+
+    __all__ += [
+        "EncryptedCharField",
+        "EncryptedDateField",
+        "EncryptedDateTimeField",
+        "EncryptedDecimalField",
+        "EncryptedEmailField",
+        "EncryptedIntegerField",
+        "EncryptedTextField",
+    ]

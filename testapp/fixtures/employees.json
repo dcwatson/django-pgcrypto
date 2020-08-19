@@ -6,7 +6,7 @@
         "salary": "52000.00",
         "date_hired": "1999-01-23"
     },
-    "model": "core.employee",
+    "model": "testapp.employee",
     "pk": 1
 },
 {
@@ -17,7 +17,7 @@
         "date_hired": "1996-02-28",
         "email": "johnson.sally@example.com"
     },
-    "model": "core.employee",
+    "model": "testapp.employee",
     "pk": 2
 }
 ]
