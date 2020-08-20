@@ -1,15 +1,18 @@
+import datetime
 import decimal
 import json
 import os
 import unittest
 
 from cryptography.hazmat.primitives.ciphers.algorithms import AES, Blowfish
+from django import forms
+from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import connections, transaction
 from django.db.utils import IntegrityError
 from django.test import TestCase
 
-from pgcrypto import armor, dearmor, pad, unpad
+from pgcrypto import __version__, armor, dearmor, pad, unpad
 from pgcrypto.fields import BaseEncryptedField
 
 from .models import Employee
@@ -60,8 +63,6 @@ class FieldTests(TestCase):
     fixtures = ("employees",)
 
     def setUp(self):
-        from django.db import connections
-
         c = connections["default"].cursor()
         c.execute("CREATE EXTENSION pgcrypto")
 
@@ -71,6 +72,7 @@ class FieldTests(TestCase):
             if obj["model"] == "core.employee":
                 e = Employee.objects.get(ssn=obj["fields"]["ssn"])
                 self.assertEqual(e.pk, int(obj["pk"]))
+                self.assertEqual(e.age, 42)
                 self.assertEqual(e.salary, decimal.Decimal(obj["fields"]["salary"]))
                 self.assertEqual(e.date_hired.isoformat(), obj["fields"]["date_hired"])
 
@@ -111,3 +113,35 @@ class FieldTests(TestCase):
         e = Employee.objects.get(pk=e.pk)
         self.assertIs(e.email, None)
         self.assertEqual(Employee.objects.filter(email__isnull=True).count(), 2)
+
+    def test_auto_now(self):
+        e = Employee.objects.create(name="Joe User", ssn="12345", salary=42000)
+        self.assertEqual(e.date_hired, datetime.date.today())
+        self.assertEqual(e.date_modified, Employee.objects.get(pk=e.pk).date_modified)
+
+    def test_formfields(self):
+        expected = {
+            "name": forms.CharField,
+            "age": forms.IntegerField,
+            "ssn": forms.CharField,
+            "salary": forms.DecimalField,
+            "date_hired": forms.DateField,
+            "email": forms.EmailField,
+            "date_modified": forms.DateTimeField,
+        }
+        actual = {f.name: type(f.formfield()) for f in Employee._meta.fields if not f.primary_key}
+        self.assertEqual(actual, expected)
+
+    def test_raw_versioned(self):
+        e = Employee.objects.get(ssn="666-27-9811")
+        version_check = "Version: django-pgcrypto %s" % __version__
+        raw_ssn = e.raw.ssn
+        # Check that the correct version was stored.
+        self.assertIn(version_check, raw_ssn)
+        # Check that SECRET_KEY was used by default.
+        f = BaseEncryptedField(key=settings.SECRET_KEY)
+        self.assertEqual(f.to_python(raw_ssn), e.ssn)
+        # Check that trying to decrypt with a bad key is (probably) gibberish.
+        with self.assertRaises(UnicodeDecodeError):
+            f = BaseEncryptedField(key="badkeyisaverybadkey")
+            f.to_python(raw_ssn)

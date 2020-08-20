@@ -130,5 +130,7 @@ def aes_pad_key(key):
         return pad(key, 16, zero=True)
     elif len(key) < 24:
         return pad(key, 24, zero=True)
+    elif len(key) < 32:
+        return pad(key, 32, zero=True)
     else:
-        return pad(key[:32], 32, zero=True)
+        return key[:32]

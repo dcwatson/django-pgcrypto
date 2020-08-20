@@ -25,7 +25,7 @@ class BaseEncryptedField(models.Field):
             self.cipher_name = "bf"
         if self.cipher_name not in ("aes", "bf"):
             raise ValueError("Cipher must be 'aes' or 'bf'.")
-        self.cipher_key = kwargs.pop("key", getattr(settings, "PGCRYPTO_DEFAULT_KEY", ""))
+        self.cipher_key = kwargs.pop("key", getattr(settings, "PGCRYPTO_DEFAULT_KEY", settings.SECRET_KEY))
         self.charset = kwargs.pop("charset", "utf-8")
         if isinstance(self.cipher_key, str):
             self.cipher_key = self.cipher_key.encode(self.charset)
@@ -42,10 +42,9 @@ class BaseEncryptedField(models.Field):
         """
         Deconstruct the field for Django 1.7+ migrations.
         """
-        name, path, args, kwargs = super(BaseEncryptedField, self).deconstruct()
+        name, path, args, kwargs = super().deconstruct()
         kwargs.update(
             {
-                # 'key': self.cipher_key,
                 "cipher": self.cipher_name,
                 "charset": self.charset,
                 "check_armor": self.check_armor,
@@ -117,7 +116,7 @@ class EncryptedTextField(BaseEncryptedField):
     def formfield(self, **kwargs):
         defaults = {"widget": forms.Textarea}
         defaults.update(kwargs)
-        return super(EncryptedTextField, self).formfield(**defaults)
+        return super().formfield(**defaults)
 
 
 class EncryptedCharField(BaseEncryptedField):
@@ -128,12 +127,12 @@ class EncryptedCharField(BaseEncryptedField):
         # because of the extra characters from encryption, but we'd like
         # to use the same interface as CharField
         kwargs.pop("max_length", None)
-        super(EncryptedCharField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def formfield(self, **kwargs):
         defaults = {"widget": forms.TextInput}
         defaults.update(kwargs)
-        return super(EncryptedCharField, self).formfield(**defaults)
+        return super().formfield(**defaults)
 
 
 class EncryptedIntegerField(BaseEncryptedField):
@@ -143,11 +142,11 @@ class EncryptedIntegerField(BaseEncryptedField):
     def formfield(self, **kwargs):
         defaults = {"form_class": forms.IntegerField}
         defaults.update(kwargs)
-        return super(EncryptedIntegerField, self).formfield(**defaults)
+        return super().formfield(**defaults)
 
     def to_python(self, value):
         if value:
-            return int(super(EncryptedIntegerField, self).to_python(value))
+            return int(super().to_python(value))
         return value
 
 
@@ -158,11 +157,11 @@ class EncryptedDecimalField(BaseEncryptedField):
     def formfield(self, **kwargs):
         defaults = {"form_class": forms.DecimalField}
         defaults.update(kwargs)
-        return super(EncryptedDecimalField, self).formfield(**defaults)
+        return super().formfield(**defaults)
 
     def to_python(self, value):
         if value:
-            return decimal.Decimal(super(EncryptedDecimalField, self).to_python(value))
+            return decimal.Decimal(super().to_python(value))
         return value
 
 
@@ -175,21 +174,21 @@ class EncryptedDateField(BaseEncryptedField):
         if auto_now or auto_now_add:
             kwargs["editable"] = False
             kwargs["blank"] = True
-        super(EncryptedDateField, self).__init__(verbose_name, name, **kwargs)
+        super().__init__(verbose_name, name, **kwargs)
 
     def formfield(self, **kwargs):
-        defaults = {"widget": forms.DateInput}
+        defaults = {"form_class": forms.DateField}
         defaults.update(kwargs)
-        return super(EncryptedDateField, self).formfield(**defaults)
+        return super().formfield(**defaults)
 
     def to_python(self, value):
         if value in self.empty_values:
             return None
-        unencrypted_value = super(EncryptedDateField, self).to_python(value)
+        unencrypted_value = super().to_python(value)
         return self._parse_value(unencrypted_value)
 
     def value_to_string(self, obj):
-        val = self._get_val_from_obj(obj)
+        val = self.value_from_object(obj)
         return "" if val is None else val.isoformat()
 
     def pre_save(self, model_instance, add):
@@ -198,7 +197,7 @@ class EncryptedDateField(BaseEncryptedField):
             setattr(model_instance, self.attname, value)
             return value
         else:
-            return super(EncryptedDateField, self).pre_save(model_instance, add)
+            return super().pre_save(model_instance, add)
 
     def _parse_value(self, value):
         return models.DateField().to_python(value)
@@ -212,9 +211,9 @@ class EncryptedDateTimeField(EncryptedDateField):
     field_cast = "timestamp with time zone"
 
     def formfield(self, **kwargs):
-        defaults = {"widget": forms.DateTimeInput}
+        defaults = {"form_class": forms.DateTimeField}
         defaults.update(kwargs)
-        return super(EncryptedDateTimeField, self).formfield(**defaults)
+        return super().formfield(**defaults)
 
     def _parse_value(self, value):
         return models.DateTimeField().to_python(value)
@@ -230,7 +229,7 @@ class EncryptedEmailField(BaseEncryptedField):
     def formfield(self, **kwargs):
         defaults = {"form_class": forms.EmailField}
         defaults.update(kwargs)
-        return super(EncryptedEmailField, self).formfield(**defaults)
+        return super().formfield(**defaults)
 
 
 class EncryptedLookup(Lookup):
