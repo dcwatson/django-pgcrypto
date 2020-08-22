@@ -63,8 +63,9 @@ class FieldTests(TestCase):
     fixtures = ("employees",)
 
     def setUp(self):
+        # Normally, you would use django.contrib.postgres.operations.CryptoExtension in migrations.
         c = connections["default"].cursor()
-        c.execute("CREATE EXTENSION pgcrypto")
+        c.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
 
     def test_query(self):
         fixture_path = os.path.join(os.path.dirname(__file__), "fixtures", "employees.json")
