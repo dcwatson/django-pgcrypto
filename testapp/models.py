@@ -6,7 +6,7 @@ import pgcrypto
 class Employee(models.Model):
     name = models.CharField(max_length=200)
     age = pgcrypto.EncryptedIntegerField(default=42)
-    ssn = pgcrypto.EncryptedCharField("SSN", versioned=True)
+    ssn = pgcrypto.EncryptedCharField("SSN", versioned=True, blank=True)
     salary = pgcrypto.EncryptedDecimalField()
     date_hired = pgcrypto.EncryptedDateField(cipher="bf", key="datekey", auto_now_add=True)
     email = pgcrypto.EncryptedEmailField(unique=True, null=True)

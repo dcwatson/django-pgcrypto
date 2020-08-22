@@ -236,8 +236,11 @@ class EncryptedLookup(Lookup):
     def as_postgresql(self, qn, connection):
         lhs, lhs_params = self.process_lhs(qn, connection)
         rhs, rhs_params = self.process_rhs(qn, connection)
-        params = lhs_params + [self.lhs.output_field.cipher_key] + rhs_params
         rhs = connection.operators[self.lookup_name] % rhs
+        if self.lookup_name == "exact" and rhs_params == [""]:
+            # Special case when looking for blank values, don't try to dearmor/decrypt (#23).
+            return "%s %s" % (lhs, rhs), lhs_params + rhs_params
+        params = lhs_params + [self.lhs.output_field.cipher_key] + rhs_params
         return (
             "convert_from(decrypt(dearmor(%s), %%s, '%s'), 'utf-8')%s %s"
             % (lhs, self.lhs.output_field.cipher_name, self.lhs.output_field.field_cast, rhs),

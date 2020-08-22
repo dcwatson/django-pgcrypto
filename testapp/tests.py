@@ -98,8 +98,15 @@ class FieldTests(TestCase):
             obj.full_clean()
             self.fail("Invalid employee object passed validation")
         except ValidationError as e:
-            for f in ("salary", "ssn", "email"):
+            for f in ("salary", "email"):
                 self.assertIn(f, e.error_dict)
+
+    def test_blank(self):
+        obj = Employee.objects.create(name="Test User", date_hired=datetime.date.today(), email="test@example.com")
+        self.assertEqual(obj.ssn, "")
+        obj.refresh_from_db()
+        self.assertEqual(obj.ssn, "")
+        self.assertEqual(Employee.objects.filter(ssn="").count(), 1)
 
     def test_unique(self):
         with transaction.atomic():
