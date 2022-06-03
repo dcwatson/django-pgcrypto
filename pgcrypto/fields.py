@@ -21,8 +21,6 @@ class BaseEncryptedField(models.Field):
     def __init__(self, *args, **kwargs):
         self.cipher_name = kwargs.pop("cipher", getattr(settings, "PGCRYPTO_DEFAULT_CIPHER", "aes")).lower()
         # Backwards-compatibility.
-        if self.cipher_name == "blowfish":
-            self.cipher_name = "bf"
         if self.cipher_name not in ("aes", "bf"):
             raise ValueError("Cipher must be 'aes' or 'bf'.")
         self.cipher_key = kwargs.pop("key", getattr(settings, "PGCRYPTO_DEFAULT_KEY", settings.SECRET_KEY))
