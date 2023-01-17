@@ -4,7 +4,7 @@ import json
 import os
 import unittest
 
-from cryptography.hazmat.primitives.ciphers.algorithms import AES, Blowfish
+from cryptography.hazmat.primitives.ciphers.algorithms import AES
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -20,11 +20,6 @@ from .models import Employee
 
 class CryptoTests(unittest.TestCase):
     def setUp(self):
-        # This is the expected Blowfish-encrypted value, according to the following pgcrypto call:
-        #     select encrypt('sensitive information', 'pass', 'bf');
-        self.encrypt_bf = b"x\364r\225\356WH\347\240\205\211a\223I{~\233\034\347\217/f\035\005"
-        # The basic "encrypt" call assumes an all-NUL IV of the appropriate block size.
-        self.iv_blowfish = b"\0" * Blowfish.block_size
         # This is the expected AES-encrypted value, according to the following pgcrypto call:
         #     select encrypt('sensitive information', 'pass', 'aes');
         self.encrypt_aes = b"\263r\011\033]Q1\220\340\247\317Y,\321q\224KmuHf>Z\011M\032\316\376&z\330\344"
@@ -39,16 +34,16 @@ class CryptoTests(unittest.TestCase):
         )
 
     def test_encrypt(self):
-        f = BaseEncryptedField(cipher="bf", key=b"pass")
-        self.assertEqual(f.encrypt(pad(b"sensitive information", f.block_size)), self.encrypt_bf)
+        f = BaseEncryptedField(cipher="aes", key=b"pass")
+        self.assertEqual(f.encrypt(pad(b"sensitive information", f.block_size)), self.encrypt_aes)
 
     def test_decrypt(self):
-        f = BaseEncryptedField(cipher="bf", key=b"pass")
-        self.assertEqual(unpad(f.decrypt(self.encrypt_bf), f.block_size), b"sensitive information")
+        f = BaseEncryptedField(cipher="aes", key=b"pass")
+        self.assertEqual(unpad(f.decrypt(self.encrypt_aes), f.block_size), b"sensitive information")
 
     def test_armor_dearmor(self):
-        a = armor(self.encrypt_bf)
-        self.assertEqual(dearmor(a), self.encrypt_bf)
+        a = armor(self.encrypt_aes)
+        self.assertEqual(dearmor(a), self.encrypt_aes)
 
     def test_aes(self):
         f = BaseEncryptedField(cipher="aes", key=b"pass")
