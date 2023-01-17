@@ -20,11 +20,8 @@ class BaseEncryptedField(models.Field):
 
     def __init__(self, *args, **kwargs):
         self.cipher_name = kwargs.pop("cipher", getattr(settings, "PGCRYPTO_DEFAULT_CIPHER", "aes")).lower()
-        # Backwards-compatibility.
-        if self.cipher_name == "blowfish":
-            self.cipher_name = "bf"
-        if self.cipher_name not in ("aes", "bf"):
-            raise ValueError("Cipher must be 'aes' or 'bf'.")
+        if self.cipher_name not in ("aes", ):
+            raise ValueError("Cipher must be 'aes'. cipher={}".format(self.cipher_name))
         self.cipher_key = kwargs.pop("key", getattr(settings, "PGCRYPTO_DEFAULT_KEY", settings.SECRET_KEY))
         self.charset = kwargs.pop("charset", "utf-8")
         if isinstance(self.cipher_key, str):
@@ -55,7 +52,7 @@ class BaseEncryptedField(models.Field):
 
     @property
     def algorithm(self):
-        return {"aes": algorithms.AES, "bf": algorithms.Blowfish}[self.cipher_name]
+        return {"aes": algorithms.AES}[self.cipher_name]
 
     @property
     def block_size(self):

@@ -8,7 +8,7 @@ class Employee(models.Model):
     age = pgcrypto.EncryptedIntegerField(default=42)
     ssn = pgcrypto.EncryptedCharField("SSN", versioned=True, blank=True)
     salary = pgcrypto.EncryptedDecimalField()
-    date_hired = pgcrypto.EncryptedDateField(cipher="bf", key="datekey", auto_now_add=True)
+    date_hired = pgcrypto.EncryptedDateField(cipher="aes", key="datekey", auto_now_add=True)
     email = pgcrypto.EncryptedEmailField(unique=True, null=True)
     date_modified = pgcrypto.EncryptedDateTimeField(auto_now=True)
 
