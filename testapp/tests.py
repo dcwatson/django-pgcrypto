@@ -136,6 +136,19 @@ class FieldTests(TestCase):
         self.assertEqual(obj.ssn, "")
         self.assertEqual(Employee.objects.filter(ssn="").count(), 1)
 
+    def test_exclude_update(self):
+        obj = Employee.objects.create(
+            name="Test User",
+            date_hired=datetime.date.today(),
+            email="test@example.com",
+        )
+        Employee.objects.exclude(ssn="666-27-9811").update(ssn="666-27-9811")
+        obj.refresh_from_db()
+        self.assertEqual(obj.ssn, "666-27-9811")
+        Employee.objects.exclude(age=30).update(age=30)
+        obj.refresh_from_db()
+        self.assertEqual(obj.age, 30)
+
     def test_unique(self):
         with transaction.atomic():
             try:

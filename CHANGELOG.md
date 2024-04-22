@@ -5,6 +5,7 @@
 * Moved to pyproject.toml
 * Dropped support for Blowfish (#34)
 * Updated CI for supported versions of Python and Django
+* Coalesce encrypted text-like fields to the empty string, use NULLIF for dearmor (#30)
 
 
 ## 2.0.0

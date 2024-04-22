@@ -17,6 +17,7 @@ from .base import aes_pad_key, armor, dearmor, pad, unpad
 
 class BaseEncryptedField(models.Field):
     field_cast = ""
+    coalesce = None
 
     def __init__(self, *args, **kwargs):
         self.cipher_name = kwargs.pop(
@@ -124,6 +125,7 @@ class BaseEncryptedField(models.Field):
 
 class EncryptedTextField(BaseEncryptedField):
     description = _("Text")
+    coalesce = "''"
 
     def formfield(self, **kwargs):
         defaults = {"widget": forms.Textarea}
@@ -133,6 +135,7 @@ class EncryptedTextField(BaseEncryptedField):
 
 class EncryptedCharField(BaseEncryptedField):
     description = _("String")
+    coalesce = "''"
 
     def __init__(self, *args, **kwargs):
         # We don't want to restrict the max_length of an EncryptedCharField
@@ -239,6 +242,7 @@ class EncryptedDateTimeField(EncryptedDateField):
 class EncryptedEmailField(BaseEncryptedField):
     default_validators = [validators.validate_email]
     description = _("Email address")
+    coalesce = "''"
 
     def formfield(self, **kwargs):
         defaults = {"form_class": forms.EmailField}
@@ -255,16 +259,20 @@ class EncryptedLookup(Lookup):
             # Special case when looking for blank values, don't try to dearmor/decrypt.
             return "%s %s" % (lhs, rhs), lhs_params + rhs_params
         params = lhs_params + [self.lhs.output_field.cipher_key] + rhs_params
-        return (
-            "convert_from(decrypt(dearmor(%s), %%s, '%s'), 'utf-8')%s %s"
-            % (
-                lhs,
-                self.lhs.output_field.cipher_name,
-                self.lhs.output_field.field_cast,
-                rhs,
-            ),
-            params,
+        field_sql = (
+            "convert_from(decrypt(dearmor(nullif(%s, '')), %%s, '%s'), 'utf-8')"
+            % (lhs, self.lhs.output_field.cipher_name)
         )
+        if self.lhs.output_field.coalesce:
+            field_sql = (
+                "coalesce(" + field_sql + ", " + self.lhs.output_field.coalesce + ")"
+            )
+        sql = "%s%s %s" % (
+            field_sql,
+            self.lhs.output_field.field_cast,
+            rhs,
+        )
+        return (sql, params)
 
 
 for lookup_name in ("exact", "gt", "gte", "lt", "lte"):
