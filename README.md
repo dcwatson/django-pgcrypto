@@ -20,12 +20,12 @@ class Employee (models.Model):
     name = models.CharField(max_length=100)
     ssn = pgcrypto.EncryptedTextField()
     pay_rate = pgcrypto.EncryptedDecimalField()
-    date_hired = pgcrypto.EncryptedDateField(cipher="bf", key="datekey", auto_now_add=True)
+    date_hired = pgcrypto.EncryptedDateField(key="datekey", auto_now_add=True)
 ```
 
 If not specified when creating the field (as in `ssn` and `pay_rate` above), fields are encrypted according to the following settings:
 
-* `PGCRYPTO_DEFAULT_CIPHER` (`aes` or `bf`, default: `aes`) - The default algorithm to use when encrypting fields.
+* `PGCRYPTO_DEFAULT_CIPHER` (only `aes` is currently supported) - The default algorithm to use when encrypting fields.
 * `PGCRYPTO_DEFAULT_KEY` (default: `settings.SECRET_KEY`) - The default key to use for encryption.
 
 You must also make sure the pgcrypto extension is installed in your database. Django makes this easy with a [CryptoExtension](https://docs.djangoproject.com/en/dev/ref/contrib/postgres/operations/#cryptoextension) migration.

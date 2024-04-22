@@ -26,8 +26,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        django-version: [3.2, 4.2, 5.0]
-        python-version: [3.8, 3.9, 3.10, 3.11, 3.12]
+        django-version: ["4.2", "5.0"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         exclude:
           - python-version: "3.8"
             django-version: "5.0"
@@ -39,7 +39,7 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install Django
+      - name: Install Requirements
         run: pip install cryptography psycopg "Django~=${{ matrix.django-version }}"
       - name: Run Tests
         run: python manage.py test --noinput
