@@ -149,6 +149,16 @@ class FieldTests(TestCase):
         obj.refresh_from_db()
         self.assertEqual(obj.age, 30)
 
+    def test_in(self):
+        qs = Employee.objects.filter(ssn__in=["999-05-6728", "666-27-9811"])
+        self.assertEqual(qs.count(), 2)
+        self.assertEqual(
+            list(qs.values_list("name", flat=True)),
+            ["John Smith", "Sally Johnson"],
+        )
+        qs = Employee.objects.filter(salary__in=[52000])
+        self.assertEqual(qs.count(), 1)
+
     def test_unique(self):
         with transaction.atomic():
             try:

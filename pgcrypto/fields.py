@@ -7,7 +7,7 @@ from django import forms
 from django.conf import settings
 from django.core import validators
 from django.db import models
-from django.db.models.lookups import Lookup
+from django.db.models.lookups import FieldGetDbPrepValueIterableMixin, Lookup
 from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.translation import gettext_lazy as _
@@ -254,11 +254,13 @@ class EncryptedLookup(Lookup):
     def as_postgresql(self, qn, connection):
         lhs, lhs_params = self.process_lhs(qn, connection)
         rhs, rhs_params = self.process_rhs(qn, connection)
-        rhs = connection.operators[self.lookup_name] % rhs
+        if self.lookup_name == "in":
+            rhs = "IN (%s)" % ", ".join(rhs)
+        else:
+            rhs = connection.operators[self.lookup_name] % rhs
         if self.lookup_name == "exact" and rhs_params == [""]:
             # Special case when looking for blank values, don't try to dearmor/decrypt.
             return "%s %s" % (lhs, rhs), lhs_params + rhs_params
-        params = lhs_params + [self.lhs.output_field.cipher_key] + rhs_params
         field_sql = (
             "convert_from(decrypt(dearmor(nullif(%s, '')), %%s, '%s'), 'utf-8')"
             % (lhs, self.lhs.output_field.cipher_name)
@@ -267,15 +269,28 @@ class EncryptedLookup(Lookup):
             field_sql = (
                 "coalesce(" + field_sql + ", " + self.lhs.output_field.coalesce + ")"
             )
-        sql = "%s%s %s" % (
-            field_sql,
-            self.lhs.output_field.field_cast,
-            rhs,
+        return (
+            "%s%s %s"
+            % (
+                field_sql,
+                self.lhs.output_field.field_cast,
+                rhs,
+            ),
+            (
+                *lhs_params,
+                self.lhs.output_field.cipher_key,
+                *rhs_params,
+            ),
         )
-        return (sql, params)
+
+
+class EncryptedInLookup(FieldGetDbPrepValueIterableMixin, EncryptedLookup):
+    lookup_name = "in"
 
 
 for lookup_name in ("exact", "gt", "gte", "lt", "lte"):
     class_name = "EncryptedLookup_%s" % lookup_name
     lookup_class = type(class_name, (EncryptedLookup,), {"lookup_name": lookup_name})
     BaseEncryptedField.register_lookup(lookup_class)
+
+BaseEncryptedField.register_lookup(EncryptedInLookup)
