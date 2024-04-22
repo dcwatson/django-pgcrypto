@@ -6,19 +6,8 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - name: Set up Python
-        uses: actions/setup-python@v1
-        with:
-          python-version: "3.x"
-      - name: Install Checkers
-        run: pip install black isort flake8
-      - name: black
-        run: black --check .
-      - name: isort
-        run: isort --check .
-      - name: flake8
-        run: flake8
+      - uses: actions/checkout@v4
+      - uses: chartboost/ruff-action@v1
 
   test:
     runs-on: ubuntu-latest
@@ -37,21 +26,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        django-version: [2.2, 3.0, 3.1]
-        python-version: [3.5, 3.6, 3.7, 3.8]
+        django-version: [3.2, 4.2, 5.0]
+        python-version: [3.8, 3.9, 3.10, 3.11, 3.12]
         exclude:
-          - python-version: "3.5"
-            django-version: "3.0"
-          - python-version: "3.5"
-            django-version: "3.1"
+          - python-version: "3.8"
+            django-version: "5.0"
+          - python-version: "3.9"
+            django-version: "5.0"
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Django
-        run: pip install cryptography psycopg2-binary "Django~=${{ matrix.django-version }}.0"
+        run: pip install cryptography psycopg "Django~=${{ matrix.django-version }}"
       - name: Run Tests
         run: python manage.py test --noinput
         env:

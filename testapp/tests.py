@@ -20,7 +20,7 @@ from .models import Employee
 
 class CryptoTests(unittest.TestCase):
     def setUp(self):
-        # This is the expected AES-encrypted value, according to the following pgcrypto call:
+        # This is the expected AES-encrypted value, according to the following query:
         #     select encrypt('sensitive information', 'pass', 'aes');
         self.encrypt_aes = b"\263r\011\033]Q1\220\340\247\317Y,\321q\224KmuHf>Z\011M\032\316\376&z\330\344"
         # The basic "encrypt" call assumes an all-NUL IV of the appropriate block size.
@@ -29,17 +29,19 @@ class CryptoTests(unittest.TestCase):
         # tacks on an extra block of padding, so it can reliably unpad afterwards. This
         # data was generated from the following query (string length = 16):
         #     select encrypt('xxxxxxxxxxxxxxxx', 'secret', 'aes');
-        self.encrypt_aes_padded = (
-            b"5M\304\316\240B$Z\351\021PD\317\213\213\234f\225L \342\004SIX\030\331S\376\371\220\\"
-        )
+        self.encrypt_aes_padded = b"5M\304\316\240B$Z\351\021PD\317\213\213\234f\225L \342\004SIX\030\331S\376\371\220\\"
 
     def test_encrypt(self):
         f = BaseEncryptedField(cipher="aes", key=b"pass")
-        self.assertEqual(f.encrypt(pad(b"sensitive information", f.block_size)), self.encrypt_aes)
+        self.assertEqual(
+            f.encrypt(pad(b"sensitive information", f.block_size)), self.encrypt_aes
+        )
 
     def test_decrypt(self):
         f = BaseEncryptedField(cipher="aes", key=b"pass")
-        self.assertEqual(unpad(f.decrypt(self.encrypt_aes), f.block_size), b"sensitive information")
+        self.assertEqual(
+            unpad(f.decrypt(self.encrypt_aes), f.block_size), b"sensitive information"
+        )
 
     def test_armor_dearmor(self):
         a = armor(self.encrypt_aes)
@@ -47,23 +49,30 @@ class CryptoTests(unittest.TestCase):
 
     def test_aes(self):
         f = BaseEncryptedField(cipher="aes", key=b"pass")
-        self.assertEqual(f.encrypt(pad(b"sensitive information", f.block_size)), self.encrypt_aes)
+        self.assertEqual(
+            f.encrypt(pad(b"sensitive information", f.block_size)), self.encrypt_aes
+        )
 
     def test_aes_pad(self):
         f = BaseEncryptedField(cipher="aes", key=b"secret")
-        self.assertEqual(unpad(f.decrypt(self.encrypt_aes_padded), f.block_size), b"xxxxxxxxxxxxxxxx")
+        self.assertEqual(
+            unpad(f.decrypt(self.encrypt_aes_padded), f.block_size), b"xxxxxxxxxxxxxxxx"
+        )
 
 
 class FieldTests(TestCase):
     fixtures = ("employees",)
 
     def setUp(self):
-        # Normally, you would use django.contrib.postgres.operations.CryptoExtension in migrations.
+        # Normally, you would use django.contrib.postgres.operations.CryptoExtension in
+        # migrations.
         c = connections["default"].cursor()
         c.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
 
     def test_query(self):
-        fixture_path = os.path.join(os.path.dirname(__file__), "fixtures", "employees.json")
+        fixture_path = os.path.join(
+            os.path.dirname(__file__), "fixtures", "employees.json"
+        )
         for obj in json.load(open(fixture_path, "r")):
             if obj["model"] == "core.employee":
                 e = Employee.objects.get(ssn=obj["fields"]["ssn"])
@@ -73,20 +82,41 @@ class FieldTests(TestCase):
                 self.assertEqual(e.date_hired.isoformat(), obj["fields"]["date_hired"])
 
     def test_decimal_lookups(self):
-        self.assertEqual(Employee.objects.filter(salary=decimal.Decimal("75248.77")).count(), 1)
-        self.assertEqual(Employee.objects.filter(salary__gte=decimal.Decimal("75248.77")).count(), 1)
-        self.assertEqual(Employee.objects.filter(salary__gt=decimal.Decimal("75248.77")).count(), 0)
-        self.assertEqual(Employee.objects.filter(salary__gte=decimal.Decimal("70000.00")).count(), 1)
-        self.assertEqual(Employee.objects.filter(salary__lte=decimal.Decimal("70000.00")).count(), 1)
-        self.assertEqual(Employee.objects.filter(salary__lt=decimal.Decimal("52000")).count(), 0)
+        self.assertEqual(
+            Employee.objects.filter(salary=decimal.Decimal("75248.77")).count(), 1
+        )
+        self.assertEqual(
+            Employee.objects.filter(salary__gte=decimal.Decimal("75248.77")).count(), 1
+        )
+        self.assertEqual(
+            Employee.objects.filter(salary__gt=decimal.Decimal("75248.77")).count(), 0
+        )
+        self.assertEqual(
+            Employee.objects.filter(salary__gte=decimal.Decimal("70000.00")).count(), 1
+        )
+        self.assertEqual(
+            Employee.objects.filter(salary__lte=decimal.Decimal("70000.00")).count(), 1
+        )
+        self.assertEqual(
+            Employee.objects.filter(salary__lt=decimal.Decimal("52000")).count(), 0
+        )
 
     def test_date_lookups(self):
         self.assertEqual(Employee.objects.filter(date_hired="1999-01-23").count(), 1)
-        self.assertEqual(Employee.objects.filter(date_hired__gte="1999-01-01").count(), 1)
-        self.assertEqual(Employee.objects.filter(date_hired__gt="1981-01-01").count(), 2)
+        self.assertEqual(
+            Employee.objects.filter(date_hired__gte="1999-01-01").count(), 1
+        )
+        self.assertEqual(
+            Employee.objects.filter(date_hired__gt="1981-01-01").count(), 2
+        )
 
     def test_multi_lookups(self):
-        self.assertEqual(Employee.objects.filter(date_hired__gt="1981-01-01", salary__lt=60000).count(), 1)
+        self.assertEqual(
+            Employee.objects.filter(
+                date_hired__gt="1981-01-01", salary__lt=60000
+            ).count(),
+            1,
+        )
 
     def test_model_validation(self):
         obj = Employee(name="Invalid User", date_hired="2000-01-01", email="invalid")
@@ -98,7 +128,9 @@ class FieldTests(TestCase):
                 self.assertIn(f, e.error_dict)
 
     def test_blank(self):
-        obj = Employee.objects.create(name="Test User", date_hired=datetime.date.today(), email="test@example.com")
+        obj = Employee.objects.create(
+            name="Test User", date_hired=datetime.date.today(), email="test@example.com"
+        )
         self.assertEqual(obj.ssn, "")
         obj.refresh_from_db()
         self.assertEqual(obj.ssn, "")
@@ -107,12 +139,18 @@ class FieldTests(TestCase):
     def test_unique(self):
         with transaction.atomic():
             try:
-                Employee.objects.create(name="Duplicate", date_hired="2000-01-01", email="johnson.sally@example.com")
+                Employee.objects.create(
+                    name="Duplicate",
+                    date_hired="2000-01-01",
+                    email="johnson.sally@example.com",
+                )
                 self.fail("Created duplicate email (should be unique).")
             except IntegrityError:
                 pass
         # Make sure we can create another record with a NULL value for a unique field.
-        e = Employee.objects.create(name="NULL Email", date_hired="2000-01-01", email=None)
+        e = Employee.objects.create(
+            name="NULL Email", date_hired="2000-01-01", email=None
+        )
         e = Employee.objects.get(pk=e.pk)
         self.assertIs(e.email, None)
         self.assertEqual(Employee.objects.filter(email__isnull=True).count(), 2)
@@ -132,7 +170,11 @@ class FieldTests(TestCase):
             "email": forms.EmailField,
             "date_modified": forms.DateTimeField,
         }
-        actual = {f.name: type(f.formfield()) for f in Employee._meta.fields if not f.primary_key}
+        actual = {
+            f.name: type(f.formfield())
+            for f in Employee._meta.fields
+            if not f.primary_key
+        }
         self.assertEqual(actual, expected)
 
     def test_raw_versioned(self):

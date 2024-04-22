@@ -19,10 +19,14 @@ class BaseEncryptedField(models.Field):
     field_cast = ""
 
     def __init__(self, *args, **kwargs):
-        self.cipher_name = kwargs.pop("cipher", getattr(settings, "PGCRYPTO_DEFAULT_CIPHER", "aes")).lower()
-        if self.cipher_name not in ("aes", ):
-            raise ValueError("Cipher must be 'aes'. cipher={}".format(self.cipher_name))
-        self.cipher_key = kwargs.pop("key", getattr(settings, "PGCRYPTO_DEFAULT_KEY", settings.SECRET_KEY))
+        self.cipher_name = kwargs.pop(
+            "cipher", getattr(settings, "PGCRYPTO_DEFAULT_CIPHER", "aes")
+        ).lower()
+        if self.cipher_name != "aes":
+            raise ValueError("Cipher must be `aes` (got `{}`)".format(self.cipher_name))
+        self.cipher_key = kwargs.pop(
+            "key", getattr(settings, "PGCRYPTO_DEFAULT_KEY", settings.SECRET_KEY)
+        )
         self.charset = kwargs.pop("charset", "utf-8")
         if isinstance(self.cipher_key, str):
             self.cipher_key = self.cipher_key.encode(self.charset)
@@ -60,11 +64,15 @@ class BaseEncryptedField(models.Field):
 
     def get_cipher(self):
         """
-        Return a new Cipher object for each time we want to encrypt/decrypt. This is because
-        pgcrypto expects a zeroed block for IV (initial value), but the IV on the cipher
-        object is cumulatively updated each time encrypt/decrypt is called.
+        Return a new Cipher object for each time we want to encrypt/decrypt. This is
+        because pgcrypto expects a zeroed block for IV (initial value), but the IV on
+        the cipher object is cumulatively updated each time encrypt/decrypt is called.
         """
-        return Cipher(self.algorithm(self.cipher_key), modes.CBC(b"\0" * self.block_size), backend=default_backend())
+        return Cipher(
+            self.algorithm(self.cipher_key),
+            modes.CBC(b"\0" * self.block_size),
+            backend=default_backend(),
+        )
 
     def encrypt(self, data):
         context = self.get_cipher().encryptor()
@@ -82,12 +90,15 @@ class BaseEncryptedField(models.Field):
 
     def to_python(self, value):
         if self.is_encrypted(value):
-            # If we have an encrypted (armored, really) value, do the following when accessing it as a python value:
+            # If we have an encrypted (armored, really) value, do the following when
+            # accessing it as a python value:
             #    1. De-armor the value to get an encrypted bytestring.
             #    2. Decrypt the bytestring using the specified cipher.
             #    3. Unpad the bytestring using the cipher's block size.
-            #    4. Decode the bytestring to a unicode string using the specified charset.
-            return unpad(self.decrypt(dearmor(value, verify=self.check_armor)), self.block_size).decode(self.charset)
+            #    4. Decode to a unicode string using the specified charset.
+            return unpad(
+                self.decrypt(dearmor(value, verify=self.check_armor)), self.block_size
+            ).decode(self.charset)
         return value
 
     def from_db_value(self, value, expression, connection):
@@ -95,14 +106,18 @@ class BaseEncryptedField(models.Field):
 
     def get_db_prep_save(self, value, connection):
         if value and not self.is_encrypted(value):
-            # If we have a value and it's not encrypted, do the following before storing in the database:
+            # If we have a value and it's not encrypted, do the following before storing
+            # in the database:
             #    1. Convert it to a unicode string (by calling unicode).
             #    2. Encode the unicode string according to the specified charset.
             #    3. Pad the bytestring for encryption, using the cipher's block size.
             #    4. Encrypt the padded bytestring using the specified cipher.
             #    5. Armor the encrypted bytestring for storage in the text field.
             return armor(
-                self.encrypt(pad(force_str(value).encode(self.charset), self.block_size)), versioned=self.versioned,
+                self.encrypt(
+                    pad(force_str(value).encode(self.charset), self.block_size)
+                ),
+                versioned=self.versioned,
             )
         return value
 
@@ -166,7 +181,9 @@ class EncryptedDateField(BaseEncryptedField):
     description = _("Date (without time)")
     field_cast = "::date"
 
-    def __init__(self, verbose_name=None, name=None, auto_now=False, auto_now_add=False, **kwargs):
+    def __init__(
+        self, verbose_name=None, name=None, auto_now=False, auto_now_add=False, **kwargs
+    ):
         self.auto_now, self.auto_now_add = auto_now, auto_now_add
         if auto_now or auto_now_add:
             kwargs["editable"] = False
@@ -235,12 +252,17 @@ class EncryptedLookup(Lookup):
         rhs, rhs_params = self.process_rhs(qn, connection)
         rhs = connection.operators[self.lookup_name] % rhs
         if self.lookup_name == "exact" and rhs_params == [""]:
-            # Special case when looking for blank values, don't try to dearmor/decrypt (#23).
+            # Special case when looking for blank values, don't try to dearmor/decrypt.
             return "%s %s" % (lhs, rhs), lhs_params + rhs_params
         params = lhs_params + [self.lhs.output_field.cipher_key] + rhs_params
         return (
             "convert_from(decrypt(dearmor(%s), %%s, '%s'), 'utf-8')%s %s"
-            % (lhs, self.lhs.output_field.cipher_name, self.lhs.output_field.field_cast, rhs),
+            % (
+                lhs,
+                self.lhs.output_field.cipher_name,
+                self.lhs.output_field.field_cast,
+                rhs,
+            ),
             params,
         )
 

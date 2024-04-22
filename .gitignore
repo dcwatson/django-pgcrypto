@@ -6,6 +6,7 @@ __pycache__
 /build
 /pip-wheel-metadata
 .vscode
+.nova
 .coverage
 /htmlcov
 /site

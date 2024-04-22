@@ -14,7 +14,15 @@
 
 from .base import __version__, __version_info__, aes_pad_key, armor, dearmor, pad, unpad
 
-__all__ = ["__version__", "__version_info__", "aes_pad_key", "armor", "dearmor", "pad", "unpad"]
+__all__ = [
+    "__version__",
+    "__version_info__",
+    "aes_pad_key",
+    "armor",
+    "dearmor",
+    "pad",
+    "unpad",
+]
 
 try:
     import django  # noqa: F401
