@@ -105,7 +105,7 @@ class BaseEncryptedField(models.Field):
     def from_db_value(self, value, expression, connection):
         return self.to_python(value)
 
-    def get_db_prep_save(self, value, connection):
+    def get_db_prep_value(self, value, connection, is_prepared=False):
         if value and not self.is_encrypted(value):
             # If we have a value and it's not encrypted, do the following before storing
             # in the database:
