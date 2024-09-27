@@ -30,3 +30,9 @@ packages = ["pgcrypto"]
 
 [tool.setuptools.dynamic]
 version = {attr = "pgcrypto.__version__"}
+
+[tool.uv]
+dev-dependencies = [
+    "django",
+    "psycopg[binary]",
+]

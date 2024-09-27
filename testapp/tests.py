@@ -215,8 +215,9 @@ class FieldTests(TestCase):
             f.to_python(raw_ssn)
 
     def test_bulk_update(self):
-
-        employees_to_update = Employee.objects.filter(ssn__in=["999-05-6728", "666-27-9811"])
+        employees_to_update = Employee.objects.filter(
+            ssn__in=["999-05-6728", "666-27-9811"]
+        )
         for employee in employees_to_update:
             employee.salary += 10000
 
