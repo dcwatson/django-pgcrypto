@@ -213,3 +213,17 @@ class FieldTests(TestCase):
         with self.assertRaises(UnicodeDecodeError):
             f = BaseEncryptedField(key="badkeyisaverybadkey")
             f.to_python(raw_ssn)
+
+    def test_bulk_update(self):
+
+        employees_to_update = Employee.objects.filter(ssn__in=["999-05-6728", "666-27-9811"])
+        for employee in employees_to_update:
+            employee.salary += 10000
+
+        Employee.objects.bulk_update(employees_to_update, ["salary"])
+
+        updated_employee_1 = Employee.objects.get(ssn="999-05-6728")
+        updated_employee_2 = Employee.objects.get(ssn="666-27-9811")
+
+        self.assertEqual(updated_employee_1.salary, decimal.Decimal("62000.00"))
+        self.assertEqual(updated_employee_2.salary, decimal.Decimal("85248.77"))

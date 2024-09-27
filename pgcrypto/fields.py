@@ -105,7 +105,13 @@ class BaseEncryptedField(models.Field):
     def from_db_value(self, value, expression, connection):
         return self.to_python(value)
 
-    def get_db_prep_value(self, value, connection, is_prepared=False):
+    def get_db_prep_save(self, value, connection):
+
+        if hasattr(value, "as_sql"):
+            # If the value is a query expression do not encrypt it, it will circle back to this function to
+            # encrypt the value in the Val() expression within the query.
+            return value
+
         if value and not self.is_encrypted(value):
             # If we have a value and it's not encrypted, do the following before storing
             # in the database:
