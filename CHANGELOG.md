@@ -1,5 +1,10 @@
 # Changelog for django-pgcrypto
 
+## 3.0.1
+
+* Properly handle query expressions, fixing e.g. bulk_update (#35)
+
+
 ## 3.0.0
 
 * Moved to pyproject.toml
