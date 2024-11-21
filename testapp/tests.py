@@ -14,6 +14,7 @@ from django.test import TestCase
 
 from pgcrypto import __version__, armor, dearmor, pad, unpad
 from pgcrypto.fields import BaseEncryptedField
+from pgcrypto.functions import Decrypt
 
 from .models import Employee
 from django.db.models import Value
