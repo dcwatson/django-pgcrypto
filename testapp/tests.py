@@ -19,6 +19,7 @@ from pgcrypto.functions import Decrypt
 from .models import Employee
 from django.db.models import Value
 from django.db.models.functions import Concat
+from django.db.models.fields import CharField
 
 
 class CryptoTests(unittest.TestCase):
@@ -237,7 +238,7 @@ class FieldTests(TestCase):
         self.assertEqual(employee.value, "999-05-6728")
 
     def test_concat_decrypt(self):
-        employee = Employee.objects.annotate(value=Concat(Decrypt('ssn'), Value(' - '), Decrypt('age'))).get(
-            ssn="999-05-6728"
-        )
+        employee = Employee.objects.annotate(
+            value=Concat(Decrypt('ssn'), Value(' - '), Decrypt('age'), output_field=CharField())
+        ).get(ssn="999-05-6728")
         self.assertEqual(employee.value, "999-05-6728 - 42")
