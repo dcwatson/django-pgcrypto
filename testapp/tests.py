@@ -234,14 +234,14 @@ class FieldTests(TestCase):
         self.assertEqual(updated_employee_2.salary, decimal.Decimal("85248.77"))
 
     def test_encrypt_function(self):
-        employee = Employee.objects.annotate(value=Decrypt('ssn')).get(ssn="999-05-6728")
-        self.assertEqual(employee.value, "999-05-6728")
-
-    def test_decrypt_function(self):
         employee = Employee.objects.annotate(encrypted_name=Encrypt('name')).get(name='John Smith')
         expected = "-----BEGIN PGP MESSAGE-----\n\nS3CgYGeFb6yTyQZVW00n9Q==\n=IuEt\n-----END PGP MESSAGE-----\n"
         self.assertEqual(employee.name, "John Smith")
         self.assertEqual(employee.encrypted_name, expected)
+
+    def test_decrypt_function(self):
+        employee = Employee.objects.annotate(value=Decrypt('ssn')).get(ssn="999-05-6728")
+        self.assertEqual(employee.value, "999-05-6728")
 
     def test_concat_decrypt(self):
         employee = Employee.objects.annotate(
