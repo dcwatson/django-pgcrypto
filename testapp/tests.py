@@ -239,8 +239,9 @@ class FieldTests(TestCase):
 
     def test_decrypt_function(self):
         employee = Employee.objects.annotate(encrypted_name=Encrypt('name')).get(name='John Smith')
+        expected = "-----BEGIN PGP MESSAGE-----\n\nS3CgYGeFb6yTyQZVW00n9Q==\n=IuEt\n-----END PGP MESSAGE-----\n"
         self.assertEqual(employee.name, "John Smith")
-        self.assertEqual(employee.encrypted_name, "'-----BEGIN PGP MESSAGE-----\n\nS3CgYGeFb6[46 chars]--\n'")
+        self.assertEqual(employee.encrypted_name, expected)
 
     def test_concat_decrypt(self):
         employee = Employee.objects.annotate(
