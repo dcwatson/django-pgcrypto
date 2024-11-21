@@ -9,6 +9,9 @@ from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import connections, transaction
+from django.db.models import Value
+from django.db.models.fields import CharField
+from django.db.models.functions import Concat
 from django.db.utils import IntegrityError
 from django.test import TestCase
 
@@ -17,9 +20,6 @@ from pgcrypto.fields import BaseEncryptedField
 from pgcrypto.functions import Decrypt, Encrypt
 
 from .models import Employee
-from django.db.models import Value
-from django.db.models.functions import Concat
-from django.db.models.fields import CharField
 
 
 class CryptoTests(unittest.TestCase):
@@ -234,17 +234,30 @@ class FieldTests(TestCase):
         self.assertEqual(updated_employee_2.salary, decimal.Decimal("85248.77"))
 
     def test_encrypt_function(self):
-        employee = Employee.objects.annotate(encrypted_name=Encrypt('name')).get(name='John Smith')
-        expected = "-----BEGIN PGP MESSAGE-----\n\nS3CgYGeFb6yTyQZVW00n9Q==\n=IuEt\n-----END PGP MESSAGE-----\n"
+        employee = Employee.objects.annotate(
+            encrypted_name=Encrypt("name"),
+            roundtrip_name=Decrypt(Encrypt("name")),
+        ).get(name="John Smith")
+        expected = (
+            "-----BEGIN PGP MESSAGE-----\n\n"
+            "S3CgYGeFb6yTyQZVW00n9Q==\n"
+            "=IuEt\n"
+            "-----END PGP MESSAGE-----\n"
+        )
         self.assertEqual(employee.name, "John Smith")
         self.assertEqual(employee.encrypted_name, expected)
+        self.assertEqual(employee.roundtrip_name, employee.name)
 
     def test_decrypt_function(self):
-        employee = Employee.objects.annotate(value=Decrypt('ssn')).get(ssn="999-05-6728")
+        employee = Employee.objects.annotate(value=Decrypt("ssn")).get(
+            ssn="999-05-6728"
+        )
         self.assertEqual(employee.value, "999-05-6728")
 
     def test_concat_decrypt(self):
         employee = Employee.objects.annotate(
-            value=Concat(Decrypt('ssn'), Value(' - '), Decrypt('age'), output_field=CharField())
+            value=Concat(
+                Decrypt("ssn"), Value(" - "), Decrypt("age"), output_field=CharField()
+            )
         ).get(ssn="999-05-6728")
         self.assertEqual(employee.value, "999-05-6728 - 42")

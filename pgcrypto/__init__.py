@@ -41,6 +41,7 @@ if has_django:
         EncryptedIntegerField,
         EncryptedTextField,
     )
+    from .functions import Decrypt, Encrypt
 
     __all__ += [
         "EncryptedCharField",
@@ -50,4 +51,6 @@ if has_django:
         "EncryptedEmailField",
         "EncryptedIntegerField",
         "EncryptedTextField",
+        "Encrypt",
+        "Decrypt",
     ]
