@@ -14,7 +14,7 @@ from django.test import TestCase
 
 from pgcrypto import __version__, armor, dearmor, pad, unpad
 from pgcrypto.fields import BaseEncryptedField
-from pgcrypto.functions import Decrypt
+from pgcrypto.functions import Decrypt, Encrypt
 
 from .models import Employee
 from django.db.models import Value
@@ -233,9 +233,15 @@ class FieldTests(TestCase):
         self.assertEqual(updated_employee_1.salary, decimal.Decimal("62000.00"))
         self.assertEqual(updated_employee_2.salary, decimal.Decimal("85248.77"))
 
-    def test_decrypt_function(self):
+    def test_encrypt_function(self):
         employee = Employee.objects.annotate(value=Decrypt('ssn')).get(ssn="999-05-6728")
         self.assertEqual(employee.value, "999-05-6728")
+
+    def test_decrypt_function(self):
+        employee = Employee.objects.annotate(encrypted_name=Encrypt('name')).get(name='John Smith')
+        self.assertEqual(employee.name, "John Smith")
+        print(employee.encrypted_name)
+        self.assertEqual(employee.encrypted_name, "John Smith")
 
     def test_concat_decrypt(self):
         employee = Employee.objects.annotate(
