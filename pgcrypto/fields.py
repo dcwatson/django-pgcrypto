@@ -288,7 +288,12 @@ class EncryptedLookup(Lookup):
             connection.ops.lookup_cast(self.lookup_name, field_internal_type) % field_sql
         )
 
-        if self.rhs_is_direct_value() and rhs_params and not self.bilateral_transforms:
+        if (
+            self.lookup_name in self.patterns
+            and self.rhs_is_direct_value()
+            and rhs_params
+            and not self.bilateral_transforms
+        ):
             rhs_params[0] = self.patterns[self.lookup_name] % connection.ops.prep_for_like_query(
                 rhs_params[0]
             )
