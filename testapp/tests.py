@@ -261,3 +261,28 @@ class FieldTests(TestCase):
             )
         ).get(ssn="999-05-6728")
         self.assertEqual(employee.value, "999-05-6728 - 42")
+
+
+    def test_contains(self):
+        employee = Employee.objects.filter(email__contains='sal').get()
+        self.assertEqual(employee.email, "johnson.sally@example.com")
+
+    def test_icontains(self):
+        employee = Employee.objects.filter(email__icontains='SAL').get()
+        self.assertEqual(employee.email, "johnson.sally@example.com")
+
+    def test_startswith(self):
+        employee = Employee.objects.filter(email__startswith='john').get()
+        self.assertEqual(employee.email, "johnson.sally@example.com")
+
+    def test_istartswith(self):
+        employee = Employee.objects.filter(email__istartswith='JOHN').get()
+        self.assertEqual(employee.email, "johnson.sally@example.com")
+
+    def test_endswith(self):
+        employee = Employee.objects.filter(email__endswith='com').get()
+        self.assertEqual(employee.email, "johnson.sally@example.com")
+
+    def test_iendswith(self):
+        employee = Employee.objects.filter(email__iendswith='COM').get()
+        self.assertEqual(employee.email, "johnson.sally@example.com")
