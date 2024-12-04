@@ -285,7 +285,8 @@ class EncryptedLookup(Lookup):
             )
         field_internal_type = self.lhs.output_field.get_internal_type()
         field_sql = (
-            connection.ops.lookup_cast(self.lookup_name, field_internal_type) % field_sql
+            connection.ops.lookup_cast(self.lookup_name, field_internal_type)
+            % field_sql
         )
 
         if (
@@ -294,9 +295,9 @@ class EncryptedLookup(Lookup):
             and rhs_params
             and not self.bilateral_transforms
         ):
-            rhs_params[0] = self.patterns[self.lookup_name] % connection.ops.prep_for_like_query(
-                rhs_params[0]
-            )
+            rhs_params[0] = self.patterns[
+                self.lookup_name
+            ] % connection.ops.prep_for_like_query(rhs_params[0])
 
         return (
             "%s%s %s"
@@ -317,7 +318,19 @@ class EncryptedInLookup(FieldGetDbPrepValueIterableMixin, EncryptedLookup):
     lookup_name = "in"
 
 
-for lookup_name in ("exact", "gt", "gte", "lt", "lte", 'contains', 'icontains', 'startswith', 'istartswith', 'endswith', 'iendswith'):
+for lookup_name in (
+    "exact",
+    "gt",
+    "gte",
+    "lt",
+    "lte",
+    "contains",
+    "icontains",
+    "startswith",
+    "istartswith",
+    "endswith",
+    "iendswith",
+):
     class_name = "EncryptedLookup_%s" % lookup_name
     lookup_class = type(class_name, (EncryptedLookup,), {"lookup_name": lookup_name})
     BaseEncryptedField.register_lookup(lookup_class)

@@ -32,7 +32,7 @@ You must also make sure the pgcrypto extension is installed in your database. Dj
 
 ## Querying
 
-It is possible to filter on encrypted fields as you would normal fields via `exact`, `gt`, `gte`, `lt`, and `lte` lookups. For example, querying the model above is possible like so:
+It is possible to filter on encrypted fields as you would normal fields via `exact`, `gt`, `gte`, `lt`, `lte`, `contains`, `icontains`, `startswith`, `istartswith`, `endswith`, and `iendswith` lookups. For example, querying the model above is possible like so:
 
 ```python
 Employee.objects.filter(date_hired__gt="1981-01-01", salary__lt=60000)

@@ -3,6 +3,7 @@
 ## 3.0.2
 
 * Added `Encrypt` and `Decrypt` Django functions (https://github.com/dcwatson/django-pgcrypto/pull/36)
+* Added `contains`, `icontains`, `startswith`, `istartswith`, `endswith`, and `iendswith` filter support (https://github.com/dcwatson/django-pgcrypto/pull/37)
 
 
 ## 3.0.1
