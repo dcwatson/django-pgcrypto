@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "django-pgcrypto"
@@ -25,11 +25,11 @@ dynamic = ["version"]
 [project.urls]
 Repository = "https://github.com/dcwatson/django-pgcrypto"
 
-[tool.setuptools]
+[tool.hatch.build.targets.wheel]
 packages = ["pgcrypto"]
 
-[tool.setuptools.dynamic]
-version = {attr = "pgcrypto.__version__"}
+[tool.hatch.version]
+path = "pgcrypto/base.py"
 
 [tool.uv]
 dev-dependencies = [
