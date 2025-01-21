@@ -320,6 +320,7 @@ class EncryptedInLookup(FieldGetDbPrepValueIterableMixin, EncryptedLookup):
 
 for lookup_name in (
     "exact",
+    "iexact",
     "gt",
     "gte",
     "lt",

@@ -262,6 +262,14 @@ class FieldTests(TestCase):
         ).get(ssn="999-05-6728")
         self.assertEqual(employee.value, "999-05-6728 - 42")
 
+    def test_exact(self):
+        employee = Employee.objects.filter(email__exact="johnson.sally@example.com").get()
+        self.assertEqual(employee.email, "johnson.sally@example.com")
+
+    def test_iexact(self):
+        employee = Employee.objects.filter(email__iexact="Johnson.saLly@ExamPle.cOm").get()
+        self.assertEqual(employee.email, "johnson.sally@example.com")
+
     def test_contains(self):
         employee = Employee.objects.filter(email__contains="sal").get()
         self.assertEqual(employee.email, "johnson.sally@example.com")
