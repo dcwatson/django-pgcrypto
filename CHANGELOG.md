@@ -1,5 +1,10 @@
 # Changelog for django-pgcrypto
 
+## 3.0.3 (2025-02-04)
+
+* Added `iexact` lookup (https://github.com/dcwatson/django-pgcrypto/pull/39)
+
+
 ## 3.0.2
 
 * Added `Encrypt` and `Decrypt` Django functions (https://github.com/dcwatson/django-pgcrypto/pull/36)
