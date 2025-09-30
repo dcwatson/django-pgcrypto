@@ -87,7 +87,7 @@ class BaseEncryptedField(models.Field):
         """
         Returns whether the given value is encrypted (and armored) or not.
         """
-        return isinstance(value, str) and value.startswith("-----BEGIN")
+        return isinstance(value, str) and value.startswith("-----BEGIN PGP MESSAGE-----")
 
     def to_python(self, value):
         if self.is_encrypted(value):
