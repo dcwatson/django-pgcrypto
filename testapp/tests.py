@@ -47,6 +47,19 @@ class CryptoTests(unittest.TestCase):
             unpad(f.decrypt(self.encrypt_aes), f.block_size), b"sensitive information"
         )
 
+    def test_ssh_key_ignore(self):
+        CUSTOM_PRIVATE_KEY = """
+        -----BEGIN OPENSSH PRIVATE KEY-----
+        my raw key here
+        -----END OPENSSH PRIVATE KEY-----
+        """
+        f = BaseEncryptedField(cipher="aes", key=b"pass")
+        encrypted_value = f.encrypt(pad(CUSTOM_PRIVATE_KEY.encode(), f.block_size))
+        self.assertNotEqual(encrypted_value, CUSTOM_PRIVATE_KEY.encode())
+        decrypted_value = unpad(f.decrypt(encrypted_value), f.block_size).decode()
+        self.assertEqual(decrypted_value, CUSTOM_PRIVATE_KEY)
+        self.assertFalse(self.is_encrypted(CUSTOM_PRIVATE_KEY))
+
     def test_armor_dearmor(self):
         a = armor(self.encrypt_aes)
         self.assertEqual(dearmor(a), self.encrypt_aes)
