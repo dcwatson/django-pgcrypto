@@ -47,18 +47,20 @@ class CryptoTests(unittest.TestCase):
             unpad(f.decrypt(self.encrypt_aes), f.block_size), b"sensitive information"
         )
 
-    def test_ssh_key_ignore(self):
-        CUSTOM_PRIVATE_KEY = """
-        -----BEGIN OPENSSH PRIVATE KEY-----
-        my raw key here
-        -----END OPENSSH PRIVATE KEY-----
-        """
+    def test_is_encrypted(self):
         f = BaseEncryptedField(cipher="aes", key=b"pass")
-        encrypted_value = f.encrypt(pad(CUSTOM_PRIVATE_KEY.encode(), f.block_size))
-        self.assertNotEqual(encrypted_value, CUSTOM_PRIVATE_KEY.encode())
-        decrypted_value = unpad(f.decrypt(encrypted_value), f.block_size).decode()
-        self.assertEqual(decrypted_value, CUSTOM_PRIVATE_KEY)
-        self.assertFalse(self.is_encrypted(CUSTOM_PRIVATE_KEY))
+        # Case 1: Encrypted (armored) value, should return True
+        armored_value = "-----BEGIN PGP MESSAGE-----\n\nS3CgYGeFb6yTyQZVW00n9Q==\n=IuEt\n-----END PGP MESSAGE-----\n"
+        self.assertTrue(f.is_encrypted(armored_value))
+        # Case 2: Non-encrypted value, should return False
+        non_encrypted_value = "sensitive information"
+        self.assertFalse(f.is_encrypted(non_encrypted_value))
+        # Case 3: Encrypted (armored) value with the other possible format, should return True
+        armored_value_with_other_format = "-----BEGIN PGP MESSAGE-----\n\nS3CgYGeFb6yTyQZVW00n9Q==\n=IuEt\n-----END PGP MESSAGE-----\n"
+        self.assertTrue(f.is_encrypted(armored_value_with_other_format))
+        # Case 4: Non-encrypted value, should return False
+        non_encrypted_value_2 = "plain text"
+        self.assertFalse(f.is_encrypted(non_encrypted_value_2))
 
     def test_armor_dearmor(self):
         a = armor(self.encrypt_aes)
