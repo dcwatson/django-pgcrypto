@@ -47,6 +47,21 @@ class CryptoTests(unittest.TestCase):
             unpad(f.decrypt(self.encrypt_aes), f.block_size), b"sensitive information"
         )
 
+    def test_is_encrypted(self):
+        f = BaseEncryptedField(cipher="aes", key=b"pass")
+        # Case 1: Encrypted (armored) value, should return True
+        armored_value = "-----BEGIN PGP MESSAGE-----\n\nS3CgYGeFb6yTyQZVW00n9Q==\n=IuEt\n-----END PGP MESSAGE-----\n"
+        self.assertTrue(f.is_encrypted(armored_value))
+        # Case 2: Non-encrypted value, should return False
+        non_encrypted_value = "sensitive information"
+        self.assertFalse(f.is_encrypted(non_encrypted_value))
+        # Case 3: Encrypted (armored) value with the other possible format, should return True
+        armored_value_with_other_format = "-----BEGIN PGP MESSAGE-----\n\nS3CgYGeFb6yTyQZVW00n9Q==\n=IuEt\n-----END PGP MESSAGE-----\n"
+        self.assertTrue(f.is_encrypted(armored_value_with_other_format))
+        # Case 4: Non-encrypted value, should return False
+        non_encrypted_value_2 = "plain text"
+        self.assertFalse(f.is_encrypted(non_encrypted_value_2))
+
     def test_armor_dearmor(self):
         a = armor(self.encrypt_aes)
         self.assertEqual(dearmor(a), self.encrypt_aes)
