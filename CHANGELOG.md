@@ -1,8 +1,9 @@
 # Changelog for django-pgcrypto
 
-## 3.1.0 (in development)
+## 3.1.0 (2025-12-22)
 
 * Dropped support for Python 3.9, test on Python 3.14
+* Added support for Django 6.0
 
 
 ## 3.0.3 (2025-02-04)

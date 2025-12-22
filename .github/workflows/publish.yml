@@ -1,0 +1,27 @@
+name: Publish
+
+on: [workflow_dispatch]
+
+env:
+    UV_PYTHON_DOWNLOADS: never
+    UV_PYTHON_PREFERENCE: only-system
+
+jobs:
+    publish:
+        name: Publish to PyPI
+        runs-on: ubuntu-latest
+        environment:
+            name: pypi
+            url: https://pypi.org/p/django-pgcrypto
+        permissions:
+            id-token: write
+        steps:
+            - uses: actions/checkout@v6
+            - name: Set up Python
+              uses: actions/setup-python@v6
+            - name: Set up uv
+              uses: astral-sh/setup-uv@v7
+            - name: Build
+              run: uv build
+            - name: Publish
+              run: uv publish
