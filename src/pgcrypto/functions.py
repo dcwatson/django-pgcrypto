@@ -44,9 +44,7 @@ class Encrypt(CryptoFunc):
     def as_sql(self, *args, **extra_context):
         sql, params = super().as_sql(*args, **extra_context)
         cipher_name, cipher_key, charset = self.get_params()
-        params.extend([charset, cipher_key, cipher_name])
-
-        return sql, params
+        return sql, (*params, charset, cipher_key, cipher_name)
 
 
 class Decrypt(CryptoFunc):
@@ -56,6 +54,4 @@ class Decrypt(CryptoFunc):
     def as_sql(self, *args, **extra_context):
         sql, params = super().as_sql(*args, **extra_context)
         cipher_name, cipher_key, charset = self.get_params()
-        params.extend([cipher_key, cipher_name, charset])
-
-        return sql, params
+        return sql, (*params, cipher_key, cipher_name, charset)

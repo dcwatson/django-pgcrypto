@@ -277,9 +277,9 @@ class EncryptedLookup(Lookup):
             rhs = "IN (%s)" % ", ".join(rhs)
         else:
             rhs = connection.operators[self.lookup_name] % rhs
-        if self.lookup_name == "exact" and rhs_params == [""]:
+        if self.lookup_name == "exact" and rhs_params and rhs_params[0] == "":
             # Special case when looking for blank values, don't try to dearmor/decrypt.
-            return "%s %s" % (lhs, rhs), lhs_params + rhs_params
+            return "%s %s" % (lhs, rhs), (*lhs_params, *rhs_params)
         field_sql = (
             "convert_from(decrypt(dearmor(nullif(%s, '')), %%s, '%s'), 'utf-8')"
             % (lhs, self.lhs.output_field.cipher_name)
@@ -300,9 +300,10 @@ class EncryptedLookup(Lookup):
             and rhs_params
             and not self.bilateral_transforms
         ):
-            rhs_params[0] = self.patterns[
-                self.lookup_name
-            ] % connection.ops.prep_for_like_query(rhs_params[0])
+            pat = self.patterns[self.lookup_name] % connection.ops.prep_for_like_query(
+                rhs_params[0]
+            )
+            rhs_params = (pat, *rhs_params[1:])
 
         return (
             "%s%s %s"
