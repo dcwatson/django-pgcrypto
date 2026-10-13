@@ -77,13 +77,16 @@ class FieldTests(TestCase):
         fixture_path = os.path.join(
             os.path.dirname(__file__), "fixtures", "employees.json"
         )
-        for obj in json.load(open(fixture_path, "r")):
-            if obj["model"] == "core.employee":
-                e = Employee.objects.get(ssn=obj["fields"]["ssn"])
-                self.assertEqual(e.pk, int(obj["pk"]))
-                self.assertEqual(e.age, 42)
-                self.assertEqual(e.salary, decimal.Decimal(obj["fields"]["salary"]))
-                self.assertEqual(e.date_hired.isoformat(), obj["fields"]["date_hired"])
+        with open(fixture_path, "r") as fp:
+            for obj in json.load(fp):
+                if obj["model"] == "core.employee":
+                    e = Employee.objects.get(ssn=obj["fields"]["ssn"])
+                    self.assertEqual(e.pk, int(obj["pk"]))
+                    self.assertEqual(e.age, 42)
+                    self.assertEqual(e.salary, decimal.Decimal(obj["fields"]["salary"]))
+                    self.assertEqual(
+                        e.date_hired.isoformat(), obj["fields"]["date_hired"]
+                    )
 
     def test_decimal_lookups(self):
         self.assertEqual(
@@ -102,7 +105,7 @@ class FieldTests(TestCase):
             Employee.objects.filter(salary__lte=decimal.Decimal("70000.00")).count(), 1
         )
         self.assertEqual(
-            Employee.objects.filter(salary__lt=decimal.Decimal("52000")).count(), 0
+            Employee.objects.filter(salary__lt=decimal.Decimal(52000)).count(), 0
         )
 
     def test_date_lookups(self):
@@ -206,7 +209,7 @@ class FieldTests(TestCase):
 
     def test_raw_versioned(self):
         e = Employee.objects.get(ssn="666-27-9811")
-        version_check = "Version: django-pgcrypto %s" % __version__
+        version_check = f"Version: django-pgcrypto {__version__}"
         raw_ssn = e.raw.ssn
         # Check that the correct version was stored.
         self.assertIn(version_check, raw_ssn)

@@ -21,7 +21,7 @@ DATABASES = {
         "USER": os.environ.get("PGCRYPTO_TEST_USER", "postgres"),
         "PASSWORD": os.environ.get("PGCRYPTO_TEST_PASSWORD", ""),
         "HOST": os.environ.get("PGCRYPTO_TEST_HOST", "localhost"),
-        "PORT": os.environ.get("PGCRYPTO_TEST_PORT", 5432),
+        "PORT": os.environ.get("PGCRYPTO_TEST_PORT", "5432"),
         "TEST": {"NAME": os.environ.get("PGCRYPTO_TEST_DATABASE", "django_pgcrypto")},
     }
 }

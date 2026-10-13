@@ -47,9 +47,7 @@ def armor(data, versioned=True):
     # masked in crc24).
     crc = base64.b64encode(struct.pack(">L", crc24(data))[1:])
     return template % {
-        "headers": "Version: django-pgcrypto %s\n\n" % __version__
-        if versioned
-        else "\n",
+        "headers": f"Version: django-pgcrypto {__version__}\n\n" if versioned else "\n",
         "body": body.decode("ascii"),
         "crc": crc.decode("ascii"),
     }

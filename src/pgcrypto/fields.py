@@ -24,7 +24,7 @@ class BaseEncryptedField(models.Field):
             "cipher", getattr(settings, "PGCRYPTO_DEFAULT_CIPHER", "aes")
         ).lower()
         if self.cipher_name != "aes":
-            raise ValueError("Cipher must be `aes` (got `{}`)".format(self.cipher_name))
+            raise ValueError(f"Cipher must be `aes` (got `{self.cipher_name}`)")
         self.cipher_key = kwargs.pop(
             "key", getattr(settings, "PGCRYPTO_DEFAULT_KEY", settings.SECRET_KEY)
         )
@@ -274,16 +274,13 @@ class EncryptedLookup(Lookup):
         lhs, lhs_params = self.process_lhs(qn, connection)
         rhs, rhs_params = self.process_rhs(qn, connection)
         if self.lookup_name == "in":
-            rhs = "IN (%s)" % ", ".join(rhs)
+            rhs = "IN ({})".format(", ".join(rhs))
         else:
             rhs = connection.operators[self.lookup_name] % rhs
         if self.lookup_name == "exact" and rhs_params and rhs_params[0] == "":
             # Special case when looking for blank values, don't try to dearmor/decrypt.
-            return "%s %s" % (lhs, rhs), (*lhs_params, *rhs_params)
-        field_sql = (
-            "convert_from(decrypt(dearmor(nullif(%s, '')), %%s, '%s'), 'utf-8')"
-            % (lhs, self.lhs.output_field.cipher_name)
-        )
+            return f"{lhs} {rhs}", (*lhs_params, *rhs_params)
+        field_sql = f"convert_from(decrypt(dearmor(nullif({lhs}, '')), %s, '{self.lhs.output_field.cipher_name}'), 'utf-8')"
         if self.lhs.output_field.coalesce:
             field_sql = (
                 "coalesce(" + field_sql + ", " + self.lhs.output_field.coalesce + ")"
@@ -306,12 +303,7 @@ class EncryptedLookup(Lookup):
             rhs_params = (pat, *rhs_params[1:])
 
         return (
-            "%s%s %s"
-            % (
-                field_sql,
-                self.lhs.output_field.field_cast,
-                rhs,
-            ),
+            f"{field_sql}{self.lhs.output_field.field_cast} {rhs}",
             (
                 *lhs_params,
                 self.lhs.output_field.cipher_key,
@@ -338,7 +330,7 @@ for lookup_name in (
     "endswith",
     "iendswith",
 ):
-    class_name = "EncryptedLookup_%s" % lookup_name
+    class_name = f"EncryptedLookup_{lookup_name}"
     lookup_class = type(class_name, (EncryptedLookup,), {"lookup_name": lookup_name})
     BaseEncryptedField.register_lookup(lookup_class)
 

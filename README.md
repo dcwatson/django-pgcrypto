@@ -16,7 +16,8 @@ There are several encrypted versions of Django fields that you can use (mostly) 
 from django.db import models
 import pgcrypto
 
-class Employee (models.Model):
+
+class Employee(models.Model):
     name = models.CharField(max_length=100)
     ssn = pgcrypto.EncryptedTextField()
     pay_rate = pgcrypto.EncryptedDecimalField()

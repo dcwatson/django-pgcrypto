@@ -1,5 +1,11 @@
 # Changelog for django-pgcrypto
 
+## 3.2.0 (TBD)
+
+* Dropped support for Django 4.2
+* Test on Python 3.14, Python 3.15, and Django 6.1
+
+
 ## 3.1.0 (2025-12-22)
 
 * Dropped support for Python 3.9, test on Python 3.14
