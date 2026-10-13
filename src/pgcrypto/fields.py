@@ -260,6 +260,22 @@ class EncryptedEmailField(BaseEncryptedField):
         return super().formfield(**defaults)
 
 
+class EncryptedBooleanField(BaseEncryptedField):
+    description = _("Boolean")
+    field_cast = "::boolean"
+
+    def formfield(self, **kwargs):
+        defaults = {"form_class": forms.BooleanField}
+        defaults.update(kwargs)
+        return super().formfield(**defaults)
+
+    def to_python(self, value):
+        if value in self.empty_values:
+            return None
+        unencrypted_value = super().to_python(value)
+        return unencrypted_value == 'True'
+
+
 class EncryptedLookup(Lookup):
     patterns = {
         "contains": "%%%s%%",

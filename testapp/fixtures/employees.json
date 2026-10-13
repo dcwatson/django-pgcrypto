@@ -4,7 +4,8 @@
             "name": "John Smith",
             "ssn": "999-05-6728",
             "salary": "52000.00",
-            "date_hired": "1999-01-23"
+            "date_hired": "1999-01-23",
+            "is_vip": false
         },
         "model": "testapp.employee",
         "pk": 1
@@ -15,7 +16,8 @@
             "ssn": "666-27-9811",
             "salary": "75248.77",
             "date_hired": "1996-02-28",
-            "email": "johnson.sally@example.com"
+            "email": "johnson.sally@example.com",
+            "is_vip": true
         },
         "model": "testapp.employee",
         "pk": 2

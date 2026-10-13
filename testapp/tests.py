@@ -199,6 +199,7 @@ class FieldTests(TestCase):
             "date_hired": forms.DateField,
             "email": forms.EmailField,
             "date_modified": forms.DateTimeField,
+            "is_vip": forms.BooleanField,
         }
         actual = {
             f.name: type(f.formfield())

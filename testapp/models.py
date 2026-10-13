@@ -13,6 +13,7 @@ class Employee(models.Model):
     )
     email = pgcrypto.EncryptedEmailField(unique=True, null=True)
     date_modified = pgcrypto.EncryptedDateTimeField(auto_now=True)
+    is_vip = pgcrypto.EncryptedBooleanField()
 
     def __str__(self):
         return self.name
@@ -30,6 +31,7 @@ class RawEmployee(models.Model):
     date_hired = models.TextField()
     email = models.TextField(null=True)
     date_modified = models.TextField()
+    is_vip = models.BooleanField()
 
     class Meta:
         db_table = "testapp_employee"
